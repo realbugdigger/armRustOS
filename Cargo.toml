@@ -7,7 +7,6 @@ edition = "2021"
 
 [dependencies]
 
-
 # the profile used for `cargo build`
 [profile.dev]
 panic = "abort" # disable stack unwinding on panic
