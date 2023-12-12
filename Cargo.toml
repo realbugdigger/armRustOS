@@ -7,11 +7,14 @@ edition = "2021"
 
 [features]
 default = []
-bsp_rpi3 = []
-bsp_rpi4 = []
+bsp_rpi3 = ["tock-registers"]
+bsp_rpi4 = ["tock-registers"]
 
 [dependencies]
 aarch64-cpu = "9.4.0"
+
+# Optional dependencies
+tock-registers = { version = "0.8.x", default-features = false, features = ["register_types"], optional = true }
 
 [[bin]]
 name = "kernel"
