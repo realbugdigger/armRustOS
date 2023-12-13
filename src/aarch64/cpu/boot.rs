@@ -10,7 +10,7 @@
 use aarch64_cpu::{asm, registers::*};
 use core::arch::global_asm;
 use tock_registers::interfaces::Writeable;
-use crate::{info, println};
+use crate::info;
 
 // Assembly counterpart to this file.
 global_asm!(
@@ -73,7 +73,6 @@ unsafe fn prepare_el2_to_el1_transition(phys_boot_core_stack_end_exclusive_addr:
 /// - Exception return from EL2 must must continue execution in EL1 with `kernel_init()`.
 #[no_mangle]
 pub unsafe fn _start_rust(phys_boot_core_stack_end_exclusive_addr: u64) -> ! {
-    println!("Inside _start_rust");
     info!("Inside _start_rust");
     prepare_el2_to_el1_transition(phys_boot_core_stack_end_exclusive_addr);
 

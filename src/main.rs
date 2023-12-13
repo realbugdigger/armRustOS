@@ -79,9 +79,9 @@ pub extern "C" fn kernelMain() -> ! {
     info!("Echoing input now");
 
     // Discard any spurious received characters before going into echo mode.
-    console().clear_rx();
+    // console().clear_rx();
     loop {
-        let c = console().read_char();
-        console().write_char(c);
+        // let c = console().read_char();
+        // console().write_char(c);
     }
 }
