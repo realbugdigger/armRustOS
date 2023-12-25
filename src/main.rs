@@ -73,8 +73,8 @@ pub extern "C" fn kernelMain() -> ! {
     info!("Drivers loaded:");
     // driver::driver_manager().enumerate();
 
-    info!("Timer test, spinning for 1 second");
-    time::time_manager().spin_for(Duration::from_secs(1));
+    info!("Timer test, spinning for 5 seconds");
+    time::time_manager().spin_for(Duration::from_secs(5));
 
     info!("Echoing input now");
 

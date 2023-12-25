@@ -31,7 +31,7 @@ _start:
 	// Only proceed on the boot core. Park it otherwise.
 	mrs	x1, MPIDR_EL1
 	and	x1, x1, {CONST_CORE_ID_MASK}
-	ldr	x2, BOOT_CORE_ID      // provided by bsp/__board_name__/cpu.rs
+	ldr	x2, BOOT_CORE_ID      // provided by bsp/raspberrypi/cpu.rs
 	cmp	x1, x2
 	b.ne	.L_parking_loop
 
