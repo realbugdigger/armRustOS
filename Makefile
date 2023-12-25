@@ -17,7 +17,7 @@ BSP ?= rpi3
 QEMU_MISSING_STRING = "This board is not yet supported for QEMU."
 
 ifeq ($(BSP),rpi3)
-    TARGET            = aarch64-unknown-none-softfloat
+    TARGET            = aarch64-unknown-none
     KERNEL_BIN        = kernel8.img
     QEMU_BINARY       = qemu-system-aarch64
     QEMU_MACHINE_TYPE = raspi3
@@ -28,7 +28,7 @@ ifeq ($(BSP),rpi3)
     LD_SCRIPT_PATH    = $(shell pwd)/src/bsp/raspberrypi
     RUSTC_MISC_ARGS   = -C target-cpu=cortex-a53
 else ifeq ($(BSP),rpi4)
-    TARGET            = aarch64-unknown-none-softfloat
+    TARGET            = aarch64-unknown-none
     KERNEL_BIN        = kernel8.img
     QEMU_BINARY       = qemu-system-aarch64
     QEMU_MACHINE_TYPE =
