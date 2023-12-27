@@ -1,6 +1,5 @@
 //! Timer primitives.
 
-#[cfg(target_arch = "aarch64")]
 #[path = "aarch64/time.rs"]
 mod arch_time;
 

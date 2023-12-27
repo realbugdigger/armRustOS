@@ -17,6 +17,7 @@ mod print;
 mod exception;
 mod time;
 mod synchronization;
+mod driver;
 
 use core::panic::PanicInfo;
 use core::ptr::{read_volatile, write_volatile};
@@ -34,12 +35,12 @@ fn panic(_info: &PanicInfo) -> ! {
 /// - The init calls in this function must appear in the correct order.
 unsafe fn kernel_init() -> ! {
     // Initialize the BSP driver subsystem.
-    // if let Err(x) = bsp::driver::init() {
-    //     panic!("Error initializing BSP driver subsystem: {}", x);
-    // }
+    if let Err(x) = bsp::driver::init() {
+        panic!("Error initializing BSP driver subsystem: {}", x);
+    }
 
     // Initialize all device drivers.
-    // driver::driver_manager().init_drivers();
+    driver::driver_manager().init_drivers();
     // println! is usable from here on.
 
     // Transition from unsafe to safe.
@@ -57,7 +58,7 @@ pub extern "C" fn kernelMain() -> ! {
         env!("CARGO_PKG_NAME"),
         env!("CARGO_PKG_VERSION")
     );
-    // info!("Booting on: {}", bsp::board_name());
+    info!("Booting on: {}", bsp::board_name());
 
     let (_, privilege_level) = exception::current_privilege_level();
     info!("Current privilege level: {}", privilege_level);
@@ -71,7 +72,7 @@ pub extern "C" fn kernelMain() -> ! {
     );
 
     info!("Drivers loaded:");
-    // driver::driver_manager().enumerate();
+    driver::driver_manager().enumerate();
 
     info!("Timer test, spinning for 5 seconds");
     time::time_manager().spin_for(Duration::from_secs(5));
@@ -79,9 +80,9 @@ pub extern "C" fn kernelMain() -> ! {
     info!("Echoing input now");
 
     // Discard any spurious received characters before going into echo mode.
-    // console().clear_rx();
+    console().clear_rx();
     loop {
-        // let c = console().read_char();
-        // console().write_char(c);
+        let c = console().read_char();
+        console().write_char(c);
     }
 }

@@ -1,6 +1,5 @@
 //! Synchronous and asynchronous exception handling.
 
-#[cfg(target_arch = "aarch64")]
 #[path = "aarch64/exception.rs"]
 mod arch_exception;
 
