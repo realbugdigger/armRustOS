@@ -1,6 +1,7 @@
 #![allow(clippy::upper_case_acronyms)]
 #![feature(asm_const)]
 #![feature(const_option)]
+#![feature(core_intrinsics)]
 #![feature(format_args_nl)]
 #![feature(nonzero_min_max)]
 #![feature(panic_info_message)]
@@ -18,6 +19,8 @@ mod exception;
 mod time;
 mod synchronization;
 mod driver;
+mod memory;
+mod common;
 
 use core::panic::PanicInfo;
 use core::ptr::{read_volatile, write_volatile};
@@ -34,6 +37,12 @@ fn panic(_info: &PanicInfo) -> ! {
 /// - Only a single core must be active and running this function.
 /// - The init calls in this function must appear in the correct order.
 unsafe fn kernel_init() -> ! {
+    use memory::mmu::interface::MMU;
+
+    if let Err(string) = memory::mmu::mmu().enable_mmu_and_caching() {
+        panic!("MMU: {}", string);
+    }
+
     // Initialize the BSP driver subsystem.
     if let Err(x) = bsp::driver::init() {
         panic!("Error initializing BSP driver subsystem: {}", x);
@@ -60,6 +69,9 @@ pub extern "C" fn kernelMain() -> ! {
     );
     info!("Booting on: {}", bsp::board_name());
 
+    info!("MMU online. Special regions:");
+    bsp::memory::mmu::virt_mem_layout().print_layout();
+
     let (_, privilege_level) = exception::current_privilege_level();
     info!("Current privilege level: {}", privilege_level);
 
@@ -76,6 +88,12 @@ pub extern "C" fn kernelMain() -> ! {
 
     info!("Timer test, spinning for 5 seconds");
     time::time_manager().spin_for(Duration::from_secs(5));
+
+    // let remapped_uart = unsafe { bsp::device_driver::PL011Uart::new(0x1FFF_1000) };
+    // writeln!(
+    //     remapped_uart,
+    //     "[     !!!    ] Writing through the remapped UART at 0x1FFF_1000"
+    // ).unwrap();
 
     info!("Echoing input now");
 

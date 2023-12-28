@@ -2,7 +2,7 @@
 
 pub mod driver;
 pub mod cpu;
-mod memory;
+pub mod memory;
 
 //--------------------------------------------------------------------------------------------------
 // Public Code
