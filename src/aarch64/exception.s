@@ -61,6 +61,7 @@ __vector_\handler:
 
 //------------------------------------------------------------------------------
 // The exception vector table.
+// https://developer.arm.com/documentation/den0024/a/AArch64-Exception-Handling/AArch64-exception-table?lang=en
 //------------------------------------------------------------------------------
 
 // Align by 2^11 bytes, as demanded by ARMv8-A. Same as ALIGN(2048) in an ld script.
