@@ -146,7 +146,7 @@ pub extern "C" fn kernelMain() -> ! {
     info!("");
     info!("Trying to read from address 8 GiB...");
     let mut big_addr: u64 = 8 * 1024 * 1024 * 1024;
-    unsafe { core::ptr::read_volatile(big_addr as *mut u64) };
+    unsafe { read_volatile(big_addr as *mut u64) };
 
     info!("************************************************");
     info!("Whoa! We recovered from a synchronous exception!");
@@ -157,7 +157,7 @@ pub extern "C" fn kernelMain() -> ! {
     // Now use address 9 GiB. The exception handler won't forgive us this time.
     info!("Trying to read from address 9 GiB...");
     big_addr = 9 * 1024 * 1024 * 1024;
-    unsafe { core::ptr::read_volatile(big_addr as *mut u64) };
+    unsafe { read_volatile(big_addr as *mut u64) };
 
     // Will never reach here in this tutorial.
     info!("Echoing input now");
