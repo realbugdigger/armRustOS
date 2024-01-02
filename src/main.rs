@@ -7,6 +7,12 @@
 #![feature(panic_info_message)]
 #![feature(trait_alias)]
 #![feature(unchecked_math)]
+#![feature(step_trait)]
+#![allow(incomplete_features)]
+#![feature(generic_const_exprs)]
+#![feature(int_roundings)]
+#![feature(is_sorted)]
+#![feature(linkage)]
 
 #![no_std]
 #![no_main] // tell the Rust compiler that we don’t want to use the normal entry point chain
@@ -92,9 +98,16 @@ unsafe fn kernel_init() -> ! {
 
     exception::handling_init();
 
-    if let Err(string) = memory::mmu::mmu().enable_mmu_and_caching() {
-        panic!("MMU: {}", string);
+    let phys_kernel_tables_base_addr = match memory::mmu::kernel_map_binary() {
+        Err(string) => panic!("Error mapping kernel binary: {}", string),
+        Ok(addr) => addr,
+    };
+
+    if let Err(e) = memory::mmu::enable_mmu_and_caching(phys_kernel_tables_base_addr) {
+        panic!("Enabling MMU failed: {}", e);
     }
+
+    memory::mmu::post_enable_init();
 
     // Initialize the BSP driver subsystem.
     if let Err(x) = bsp::driver::init() {
@@ -124,8 +137,8 @@ pub extern "C" fn kernelMain() -> ! {
     );
     info!("Booting on: {}", bsp::board_name());
 
-    info!("MMU online. Special regions:");
-    bsp::memory::mmu::virt_mem_layout().print_layout();
+    info!("MMU online:");
+    memory::mmu::kernel_print_mappings();
 
     let (_, privilege_level) = exception::current_privilege_level();
     info!("Current privilege level: {}", privilege_level);

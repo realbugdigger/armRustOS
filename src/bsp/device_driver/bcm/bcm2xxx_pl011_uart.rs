@@ -9,6 +9,7 @@ use crate::{
     bsp::device_driver::common::MMIODerefWrapper,
     console, cpu, driver,
     exception::{self, asynchronous::IRQNumber},
+    memory::{Address, Virtual},
     synchronization,
     synchronization::IRQSafeNullLock,
 };
@@ -240,7 +241,7 @@ impl PL011UartInner {
     /// # Safety
     ///
     /// - The user must ensure to provide a correct MMIO start address.
-    pub const unsafe fn new(mmio_start_addr: usize) -> Self {
+    pub const unsafe fn new(mmio_start_addr: Address<Virtual>) -> Self {
         Self {
             registers: Registers::new(mmio_start_addr),
             chars_written: 0,
@@ -391,7 +392,7 @@ impl PL011Uart {
     /// # Safety
     ///
     /// - The user must ensure to provide a correct MMIO start address.
-    pub const unsafe fn new(mmio_start_addr: usize) -> Self {
+    pub const unsafe fn new(mmio_start_addr: Address<Virtual>) -> Self {
         Self {
             inner: IRQSafeNullLock::new(PL011UartInner::new(mmio_start_addr)),
         }

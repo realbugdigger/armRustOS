@@ -6,6 +6,7 @@ use crate::{
     bsp::device_driver::common::BoundedUsize,
     driver,
     exception::{self, asynchronous::IRQHandlerDescriptor},
+    memory::{Address, Virtual},
 };
 use core::fmt;
 
@@ -87,7 +88,7 @@ impl InterruptController {
     /// # Safety
     ///
     /// - The user must ensure to provide a correct MMIO start address.
-    pub const unsafe fn new(periph_mmio_start_addr: usize) -> Self {
+    pub const unsafe fn new(periph_mmio_start_addr: Address<Virtual>) -> Self {
         Self {
             periph: peripheral_ic::PeripheralIC::new(periph_mmio_start_addr),
         }
@@ -111,7 +112,7 @@ impl exception::asynchronous::interface::IRQManager for InterruptController {
 
     fn register_handler(
         &self,
-        irq_handler_descriptor: IRQHandlerDescriptor<Self::IRQNumberType>,
+        irq_handler_descriptor: exception::asynchronous::IRQHandlerDescriptor<Self::IRQNumberType>,
     ) -> Result<(), &'static str> {
         match irq_handler_descriptor.number() {
             IRQNumber::Local(_) => unimplemented!("Local IRQ controller not implemented."),
