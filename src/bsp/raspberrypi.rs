@@ -3,6 +3,7 @@
 pub mod driver;
 pub mod cpu;
 pub mod memory;
+pub mod exception;
 
 //--------------------------------------------------------------------------------------------------
 // Public Code
