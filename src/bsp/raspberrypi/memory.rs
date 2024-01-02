@@ -75,19 +75,6 @@ pub(super) mod map {
         pub const PL011_UART_START:    usize = START + UART_OFFSET;
         pub const END_INCLUSIVE:       usize =         0x4000_FFFF;
     }
-
-    /// Physical devices.
-    #[cfg(feature = "bsp_rpi4")]
-    pub mod mmio {
-        use super::*;
-
-        pub const START:            usize =         0xFE00_0000;
-        pub const GPIO_START:       usize = START + GPIO_OFFSET;
-        pub const PL011_UART_START: usize = START + UART_OFFSET;
-        pub const GICD_START:       usize =         0xFF84_1000;
-        pub const GICC_START:       usize =         0xFF84_2000;
-        pub const END_INCLUSIVE:    usize =         0xFF84_FFFF;
-    }
 }
 
 //--------------------------------------------------------------------------------------------------

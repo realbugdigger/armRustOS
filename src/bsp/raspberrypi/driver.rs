@@ -20,10 +20,6 @@ static GPIO: device_driver::GPIO = unsafe { device_driver::GPIO::new(mmio::GPIO_
 static INTERRUPT_CONTROLLER: device_driver::InterruptController =
     unsafe { device_driver::InterruptController::new(mmio::PERIPHERAL_IC_START) };
 
-#[cfg(feature = "bsp_rpi4")]
-static INTERRUPT_CONTROLLER: device_driver::GICv2 =
-    unsafe { device_driver::GICv2::new(mmio::GICD_START, mmio::GICC_START) };
-
 //--------------------------------------------------------------------------------------------------
 // Private Code
 //--------------------------------------------------------------------------------------------------

@@ -154,15 +154,6 @@ impl GPIOInner {
         self.registers.GPPUDCLK0.set(0);
     }
 
-    /// Disable pull-up/down on pins 14 and 15.
-    #[cfg(feature = "bsp_rpi4")]
-    fn disable_pud_14_15_bcm2711(&mut self) {
-        self.registers.GPIO_PUP_PDN_CNTRL_REG0.write(
-            GPIO_PUP_PDN_CNTRL_REG0::GPIO_PUP_PDN_CNTRL15::PullUp
-                + GPIO_PUP_PDN_CNTRL_REG0::GPIO_PUP_PDN_CNTRL14::PullUp,
-        );
-    }
-
     /// Map PL011 UART as standard output.
     ///
     /// TX to pin 14
@@ -176,9 +167,6 @@ impl GPIOInner {
         // Disable pull-up/down on pins 14 and 15.
         #[cfg(feature = "bsp_rpi3")]
         self.disable_pud_14_15_bcm2837();
-
-        #[cfg(feature = "bsp_rpi4")]
-        self.disable_pud_14_15_bcm2711();
     }
 }
 
