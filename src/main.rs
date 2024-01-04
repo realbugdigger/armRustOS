@@ -97,17 +97,7 @@ unsafe fn kernel_init() -> ! {
     use memory::mmu::interface::MMU;
 
     exception::handling_init();
-
-    let phys_kernel_tables_base_addr = match memory::mmu::kernel_map_binary() {
-        Err(string) => panic!("Error mapping kernel binary: {}", string),
-        Ok(addr) => addr,
-    };
-
-    if let Err(e) = memory::mmu::enable_mmu_and_caching(phys_kernel_tables_base_addr) {
-        panic!("Enabling MMU failed: {}", e);
-    }
-
-    memory::mmu::post_enable_init();
+    memory::init();
 
     // Initialize the BSP driver subsystem.
     if let Err(x) = bsp::driver::init() {
@@ -116,6 +106,8 @@ unsafe fn kernel_init() -> ! {
 
     // Initialize all device drivers.
     driver::driver_manager().init_drivers_and_irqs();
+
+    bsp::memory::mmu::kernel_add_mapping_records_for_precomputed();
 
     // Unmask interrupts on the boot CPU core.
     exception::asynchronous::local_irq_unmask();
@@ -130,11 +122,6 @@ unsafe fn kernel_init() -> ! {
 /// The main function running after the early init.
 #[no_mangle]
 pub extern "C" fn kernelMain() -> ! {
-    info!(
-        "{} version {}",
-        env!("CARGO_PKG_NAME"),
-        env!("CARGO_PKG_VERSION")
-    );
     info!("Booting on: {}", bsp::board_name());
 
     info!("MMU online:");

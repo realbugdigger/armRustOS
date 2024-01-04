@@ -7,10 +7,10 @@
 //!
 //! crate::cpu::boot::arch_boot
 
+use crate::{memory, memory::Address};
 use aarch64_cpu::{asm, registers::*};
 use core::arch::global_asm;
 use tock_registers::interfaces::Writeable;
-use crate::info;
 
 // Assembly counterpart to this file.
 global_asm!(
@@ -52,7 +52,7 @@ unsafe fn prepare_el2_to_el1_transition(phys_boot_core_stack_end_exclusive_addr:
             + SPSR_EL2::M::EL1h,
     );
 
-    // Second, let the link register point to kernelMain().
+    // Second, let the link register point to kernel_init().
     ELR_EL2.set(crate::kernel_init as *const () as u64);
 
     // Set up SP_EL1 (stack pointer), which will be used by EL1 once we "return" to it. Since there
@@ -72,8 +72,15 @@ unsafe fn prepare_el2_to_el1_transition(phys_boot_core_stack_end_exclusive_addr:
 ///
 /// - Exception return from EL2 must must continue execution in EL1 with `kernel_init()`.
 #[no_mangle]
-pub unsafe fn _start_rust(phys_boot_core_stack_end_exclusive_addr: u64) -> ! {
+pub unsafe extern "C" fn _start_rust(
+    phys_kernel_tables_base_addr: u64,
+    phys_boot_core_stack_end_exclusive_addr: u64,
+) -> ! {
     prepare_el2_to_el1_transition(phys_boot_core_stack_end_exclusive_addr);
+
+    // Turn on the MMU for EL1.
+    let addr = Address::new(phys_kernel_tables_base_addr as usize);
+    memory::mmu::enable_mmu_and_caching(addr).unwrap();
 
     // Use `eret` to "return" to EL1. This results in execution of kernel_init() in EL1.
     asm::eret()
