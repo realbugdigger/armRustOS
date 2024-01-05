@@ -93,6 +93,7 @@ fn panic(info: &PanicInfo) -> ! {
 ///     - MMU + Data caching must be activated at the earliest. Without it, any atomic operations,
 ///       e.g. the yet-to-be-introduced spinlocks in the device drivers (which currently employ
 ///       IRQSafeNullLocks instead of spinlocks), will fail to work (properly) on the RPi SoCs.
+#[no_mangle]
 unsafe fn kernel_init() -> ! {
     use memory::mmu::interface::MMU;
 

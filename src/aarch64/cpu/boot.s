@@ -14,6 +14,18 @@
 	add	\register, \register, #:lo12:\symbol
 .endm
 
+// Load the address of a symbol into a register, absolute.
+//
+// # Resources
+//
+// - https://sourceware.org/binutils/docs-2.36/as/AArch64_002dRelocations.html
+.macro ADR_ABS register, symbol
+	movz	\register, #:abs_g3:\symbol
+	movk	\register, #:abs_g2_nc:\symbol
+	movk	\register, #:abs_g1_nc:\symbol
+	movk	\register, #:abs_g0_nc:\symbol
+.endm
+
 //--------------------------------------------------------------------------------------------------
 // Public Code
 //--------------------------------------------------------------------------------------------------
@@ -52,19 +64,31 @@ _start:
 	// Load the base address of the kernel's translation tables.
 	ldr	x0, PHYS_KERNEL_TABLES_BASE_ADDR // provided by bsp/raspberrypi/memory/mmu.rs
 
-	// Set the stack pointer. This ensures that any code in EL2 that needs the stack will work.
-	ADR_REL	x1, __boot_core_stack_end_exclusive
-	mov	sp, x1
+	// Load the _absolute_ addresses of the following symbols. Since the kernel is linked at
+	// the top of the 64 bit address space, these are effectively virtual addresses.
+	ADR_ABS	x1, __boot_core_stack_end_exclusive
+	ADR_ABS	x2, kernel_init
+
+	// Load the PC-relative address of the stack and set the stack pointer.
+	//
+	// Since _start() is the first function that runs after the firmware has loaded the kernel
+	// into memory, retrieving this symbol PC-relative returns the "physical" address.
+	//
+	// Setting the stack pointer to this value ensures that anything that still runs in EL2,
+	// until the kernel returns to EL1 with the MMU enabled, works as well. After the return to
+	// EL1, the virtual address of the stack retrieved above will be used.
+	ADR_REL	x3, __boot_core_stack_end_exclusive
+	mov	sp, x3
 
 	// Read the CPU's timer counter frequency and store it in ARCH_TIMER_COUNTER_FREQUENCY.
 	// Abort if the frequency read back as 0.
-	ADR_REL	x2, ARCH_TIMER_COUNTER_FREQUENCY // provided by aarch64/time.rs
-	mrs	x3, CNTFRQ_EL0
-	cmp	x3, xzr
+	ADR_REL	x4, ARCH_TIMER_COUNTER_FREQUENCY // provided by aarch64/time.rs
+	mrs	x5, CNTFRQ_EL0
+	cmp	x5, xzr
 	b.eq	.L_parking_loop
-	str	w3, [x2]
+	str	w5, [x4]
 
-	// Jump to Rust code. x0 and x1 hold the function arguments provided to _start_rust().
+	// Jump to Rust code. x0, x1 and x2 hold the function arguments provided to _start_rust().
 	b	_start_rust
 
 	// Infinitely wait for events (aka "park the core").
