@@ -1,7 +1,3 @@
-//--------------------------------------------------------------------------------------------------
-// Definitions
-//--------------------------------------------------------------------------------------------------
-
 // Load the address of a symbol into a register, PC-relative.
 //
 // The symbol must lie within +/- 4 GiB of the Program Counter.
