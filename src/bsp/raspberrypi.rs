@@ -2,7 +2,8 @@
 
 pub mod driver;
 pub mod cpu;
-mod memory;
+pub mod memory;
+pub mod exception;
 
 //--------------------------------------------------------------------------------------------------
 // Public Code
@@ -13,10 +14,5 @@ pub fn board_name() -> &'static str {
     #[cfg(feature = "bsp_rpi3")]
     {
         "Raspberry Pi 3"
-    }
-
-    #[cfg(feature = "bsp_rpi4")]
-    {
-        "Raspberry Pi 4"
     }
 }

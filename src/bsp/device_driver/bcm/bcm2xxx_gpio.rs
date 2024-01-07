@@ -1,8 +1,12 @@
 //! GPIO Driver.
 
 use crate::{
-    bsp::device_driver::common::MMIODerefWrapper, driver, synchronization,
-    synchronization::NullLock,
+    bsp::device_driver::common::MMIODerefWrapper,
+    driver,
+    exception::asynchronous::IRQNumber,
+    memory::{Address, Virtual},
+    synchronization,
+    synchronization::IRQSafeNullLock,
 };
 use tock_registers::{
     interfaces::{ReadWriteable, Writeable},
@@ -114,7 +118,7 @@ struct GPIOInner {
 
 /// Representation of the GPIO HW.
 pub struct GPIO {
-    inner: NullLock<GPIOInner>,
+    inner: IRQSafeNullLock<GPIOInner>,
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -127,7 +131,7 @@ impl GPIOInner {
     /// # Safety
     ///
     /// - The user must ensure to provide a correct MMIO start address.
-    pub const unsafe fn new(mmio_start_addr: usize) -> Self {
+    pub const unsafe fn new(mmio_start_addr: Address<Virtual>) -> Self {
         Self {
             registers: Registers::new(mmio_start_addr),
         }
@@ -136,37 +140,22 @@ impl GPIOInner {
     /// Disable pull-up/down on pins 14 and 15.
     #[cfg(feature = "bsp_rpi3")]
     fn disable_pud_14_15_bcm2837(&mut self) {
-        use crate::cpu;
+        use crate::time;
+        use core::time::Duration;
 
-        // Make an educated guess for a good delay value (Sequence described in the BCM2837
-        // peripherals PDF).
-        //
-        // - According to Wikipedia, the fastest RPi4 clocks around 1.5 GHz.
-        // - The Linux 2837 GPIO driver waits 1 µs between the steps.
-        //
-        // So lets try to be on the safe side and default to 2000 cycles, which would equal 1 µs
-        // would the CPU be clocked at 2 GHz.
-        const DELAY: usize = 2000;
+        // The Linux 2837 GPIO driver waits 1 µs between the steps.
+        const DELAY: Duration = Duration::from_micros(1);
 
         self.registers.GPPUD.write(GPPUD::PUD::Off);
-        cpu::spin_for_cycles(DELAY);
+        time::time_manager().spin_for(DELAY);
 
         self.registers
             .GPPUDCLK0
             .write(GPPUDCLK0::PUDCLK15::AssertClock + GPPUDCLK0::PUDCLK14::AssertClock);
-        cpu::spin_for_cycles(DELAY);
+        time::time_manager().spin_for(DELAY);
 
         self.registers.GPPUD.write(GPPUD::PUD::Off);
         self.registers.GPPUDCLK0.set(0);
-    }
-
-    /// Disable pull-up/down on pins 14 and 15.
-    #[cfg(feature = "bsp_rpi4")]
-    fn disable_pud_14_15_bcm2711(&mut self) {
-        self.registers.GPIO_PUP_PDN_CNTRL_REG0.write(
-            GPIO_PUP_PDN_CNTRL_REG0::GPIO_PUP_PDN_CNTRL15::PullUp
-                + GPIO_PUP_PDN_CNTRL_REG0::GPIO_PUP_PDN_CNTRL14::PullUp,
-        );
     }
 
     /// Map PL011 UART as standard output.
@@ -182,9 +171,6 @@ impl GPIOInner {
         // Disable pull-up/down on pins 14 and 15.
         #[cfg(feature = "bsp_rpi3")]
         self.disable_pud_14_15_bcm2837();
-
-        #[cfg(feature = "bsp_rpi4")]
-        self.disable_pud_14_15_bcm2711();
     }
 }
 
@@ -200,9 +186,9 @@ impl GPIO {
     /// # Safety
     ///
     /// - The user must ensure to provide a correct MMIO start address.
-    pub const unsafe fn new(mmio_start_addr: usize) -> Self {
+    pub const unsafe fn new(mmio_start_addr: Address<Virtual>) -> Self {
         Self {
-            inner: NullLock::new(GPIOInner::new(mmio_start_addr)),
+            inner: IRQSafeNullLock::new(GPIOInner::new(mmio_start_addr)),
         }
     }
 
@@ -218,6 +204,8 @@ impl GPIO {
 use synchronization::interface::Mutex;
 
 impl driver::interface::DeviceDriver for GPIO {
+    type IRQNumberType = IRQNumber;
+
     fn compatible(&self) -> &'static str {
         Self::COMPATIBLE
     }
