@@ -3,7 +3,6 @@
 //! # Resources
 //!
 //! - <https://github.com/raspberrypi/documentation/files/1888662/BCM2837-ARM-Peripherals.-.Revised.-.V2-1.pdf>
-//! - <https://developer.arm.com/documentation/ddi0183/latest>
 
 use crate::{
     bsp::device_driver::common::MMIODerefWrapper,
@@ -19,10 +18,6 @@ use tock_registers::{
     register_bitfields, register_structs,
     registers::{ReadOnly, ReadWrite, WriteOnly},
 };
-
-//--------------------------------------------------------------------------------------------------
-// Private Definitions
-//--------------------------------------------------------------------------------------------------
 
 // PL011 UART registers.
 //

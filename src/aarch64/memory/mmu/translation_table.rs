@@ -121,7 +121,7 @@ struct PageDescriptor {
 }
 
 trait StartAddr {
-    fn phys_start_addr(&self) -> Address<Physical>;
+    fn virt_start_addr(&self) -> Address<Virtual>;
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -132,7 +132,7 @@ trait StartAddr {
 /// aligned, so the lvl3 is put first.
 #[repr(C)]
 #[repr(align(65536))]
-pub struct FixedSizeTranslationTable<const NUM_TABLES: usize> {
+pub struct FixedSizeTranslationTable<const NUM_TABLES: usize, const START_FROM_TOP: bool> {
     /// Page descriptors, covering 64 KiB windows per entry.
     lvl3: [[PageDescriptor; 8192]; NUM_TABLES],
 
@@ -147,9 +147,8 @@ pub struct FixedSizeTranslationTable<const NUM_TABLES: usize> {
 // Private Code
 //--------------------------------------------------------------------------------------------------
 
-// The binary is still identity mapped, so we don't need to convert here.
 impl<T, const N: usize> StartAddr for [T; N] {
-    fn phys_start_addr(&self) -> Address<Physical> {
+    fn virt_start_addr(&self) -> Address<Virtual> {
         Address::new(self as *const _ as usize)
     }
 }
@@ -214,6 +213,35 @@ for tock_registers::fields::FieldValue<u64, STAGE1_PAGE_DESCRIPTOR::Register>
     }
 }
 
+/// Convert the HW-specific attributes of the MMU to kernel's generic memory attributes.
+impl convert::TryFrom<InMemoryRegister<u64, STAGE1_PAGE_DESCRIPTOR::Register>> for AttributeFields {
+    type Error = &'static str;
+
+    fn try_from(
+        desc: InMemoryRegister<u64, STAGE1_PAGE_DESCRIPTOR::Register>,
+    ) -> Result<AttributeFields, Self::Error> {
+        let mem_attributes = match desc.read(STAGE1_PAGE_DESCRIPTOR::AttrIndx) {
+            memory::mmu::arch_mmu::mair::NORMAL => MemAttributes::CacheableDRAM,
+            memory::mmu::arch_mmu::mair::DEVICE => MemAttributes::Device,
+            _ => return Err("Unexpected memory attribute"),
+        };
+
+        let acc_perms = match desc.read_as_enum(STAGE1_PAGE_DESCRIPTOR::AP) {
+            Some(STAGE1_PAGE_DESCRIPTOR::AP::Value::RO_EL1) => AccessPermissions::ReadOnly,
+            Some(STAGE1_PAGE_DESCRIPTOR::AP::Value::RW_EL1) => AccessPermissions::ReadWrite,
+            _ => return Err("Unexpected access permission"),
+        };
+
+        let execute_never = desc.read(STAGE1_PAGE_DESCRIPTOR::PXN) > 0;
+
+        Ok(AttributeFields {
+            mem_attributes,
+            acc_perms,
+            execute_never,
+        })
+    }
+}
+
 impl PageDescriptor {
     /// Create an instance.
     ///
@@ -246,6 +274,19 @@ impl PageDescriptor {
         InMemoryRegister::<u64, STAGE1_PAGE_DESCRIPTOR::Register>::new(self.value)
             .is_set(STAGE1_PAGE_DESCRIPTOR::VALID)
     }
+
+    /// Returns the output page.
+    fn output_page_addr(&self) -> PageAddress<Physical> {
+        let shifted = InMemoryRegister::<u64, STAGE1_PAGE_DESCRIPTOR::Register>::new(self.value)
+            .read(STAGE1_PAGE_DESCRIPTOR::OUTPUT_ADDR_64KiB) as usize;
+
+        PageAddress::from(shifted << Granule64KiB::SHIFT)
+    }
+
+    /// Returns the attributes.
+    fn try_attributes(&self) -> Result<AttributeFields, &'static str> {
+        InMemoryRegister::<u64, STAGE1_PAGE_DESCRIPTOR::Register>::new(self.value).try_into()
+    }
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -257,13 +298,22 @@ for memory::mmu::AddressSpace<AS_SIZE>
     where
         [u8; Self::SIZE >> Granule512MiB::SHIFT]: Sized,
 {
-    type TableStartFromBottom = FixedSizeTranslationTable<{ Self::SIZE >> Granule512MiB::SHIFT }>;
+    type TableStartFromTop =
+    FixedSizeTranslationTable<{ Self::SIZE >> Granule512MiB::SHIFT }, true>;
+
+    type TableStartFromBottom =
+    FixedSizeTranslationTable<{ Self::SIZE >> Granule512MiB::SHIFT }, false>;
 }
 
-impl<const NUM_TABLES: usize> FixedSizeTranslationTable<NUM_TABLES> {
+impl<const NUM_TABLES: usize, const START_FROM_TOP: bool>
+FixedSizeTranslationTable<NUM_TABLES, START_FROM_TOP>
+{
+    const START_FROM_TOP_OFFSET: Address<Virtual> =
+        Address::new((usize::MAX - (Granule512MiB::SIZE * NUM_TABLES)) + 1);
+
     /// Create an instance.
     #[allow(clippy::assertions_on_constants)]
-    pub const fn new() -> Self {
+    const fn _new(for_precompute: bool) -> Self {
         assert!(bsp::memory::mmu::KernelGranule::SIZE == Granule64KiB::SIZE);
 
         // Can't have a zero-sized address space.
@@ -272,8 +322,12 @@ impl<const NUM_TABLES: usize> FixedSizeTranslationTable<NUM_TABLES> {
         Self {
             lvl3: [[PageDescriptor::new_zeroed(); 8192]; NUM_TABLES],
             lvl2: [TableDescriptor::new_zeroed(); NUM_TABLES],
-            initialized: false,
+            initialized: for_precompute,
         }
+    }
+
+    pub const fn new_for_precompute() -> Self {
+        Self::_new(true)
     }
 
     /// Helper to calculate the lvl2 and lvl3 indices from an address.
@@ -282,15 +336,32 @@ impl<const NUM_TABLES: usize> FixedSizeTranslationTable<NUM_TABLES> {
         &self,
         virt_page_addr: PageAddress<Virtual>,
     ) -> Result<(usize, usize), &'static str> {
-        let addr = virt_page_addr.into_inner().as_usize();
-        let lvl2_index = addr >> Granule512MiB::SHIFT;
-        let lvl3_index = (addr & Granule512MiB::MASK) >> Granule64KiB::SHIFT;
+        let mut addr = virt_page_addr.into_inner();
+
+        if START_FROM_TOP {
+            addr = addr - Self::START_FROM_TOP_OFFSET;
+        }
+
+        let lvl2_index = addr.as_usize() >> Granule512MiB::SHIFT;
+        let lvl3_index = (addr.as_usize() & Granule512MiB::MASK) >> Granule64KiB::SHIFT;
 
         if lvl2_index > (NUM_TABLES - 1) {
             return Err("Virtual page is out of bounds of translation table");
         }
 
         Ok((lvl2_index, lvl3_index))
+    }
+
+    /// Returns the PageDescriptor corresponding to the supplied page address.
+    #[inline(always)]
+    fn page_descriptor_from_page_addr(
+        &self,
+        virt_page_addr: PageAddress<Virtual>,
+    ) -> Result<&PageDescriptor, &'static str> {
+        let (lvl2_index, lvl3_index) = self.lvl2_lvl3_index_from_page_addr(virt_page_addr)?;
+        let desc = &self.lvl3[lvl2_index][lvl3_index];
+
+        Ok(desc)
     }
 
     /// Sets the PageDescriptor corresponding to the supplied page address.
@@ -318,27 +389,27 @@ impl<const NUM_TABLES: usize> FixedSizeTranslationTable<NUM_TABLES> {
 // OS Interface Code
 //------------------------------------------------------------------------------
 
-impl<const NUM_TABLES: usize> memory::mmu::translation_table::interface::TranslationTable
-for FixedSizeTranslationTable<NUM_TABLES>
+impl<const NUM_TABLES: usize, const START_FROM_TOP: bool>
+memory::mmu::translation_table::interface::TranslationTable
+for FixedSizeTranslationTable<NUM_TABLES, START_FROM_TOP>
 {
-    fn init(&mut self) {
+    fn init(&mut self) -> Result<(), &'static str> {
         if self.initialized {
-            return;
+            return Ok(());
         }
 
         // Populate the l2 entries.
         for (lvl2_nr, lvl2_entry) in self.lvl2.iter_mut().enumerate() {
-            let phys_table_addr = self.lvl3[lvl2_nr].phys_start_addr();
+            let virt_table_addr = self.lvl3[lvl2_nr].virt_start_addr();
+            let phys_table_addr = memory::mmu::try_kernel_virt_addr_to_phys_addr(virt_table_addr)?;
 
             let new_desc = TableDescriptor::from_next_lvl_table_addr(phys_table_addr);
             *lvl2_entry = new_desc;
         }
 
         self.initialized = true;
-    }
 
-    fn phys_base_address(&self) -> Address<Physical> {
-        self.lvl2.phys_start_addr()
+        Ok(())
     }
 
     unsafe fn map_at(
@@ -367,5 +438,44 @@ for FixedSizeTranslationTable<NUM_TABLES>
         }
 
         Ok(())
+    }
+
+    fn try_virt_page_addr_to_phys_page_addr(
+        &self,
+        virt_page_addr: PageAddress<Virtual>,
+    ) -> Result<PageAddress<Physical>, &'static str> {
+        let page_desc = self.page_descriptor_from_page_addr(virt_page_addr)?;
+
+        if !page_desc.is_valid() {
+            return Err("Page marked invalid");
+        }
+
+        Ok(page_desc.output_page_addr())
+    }
+
+    fn try_page_attributes(
+        &self,
+        virt_page_addr: PageAddress<Virtual>,
+    ) -> Result<AttributeFields, &'static str> {
+        let page_desc = self.page_descriptor_from_page_addr(virt_page_addr)?;
+
+        if !page_desc.is_valid() {
+            return Err("Page marked invalid");
+        }
+
+        page_desc.try_attributes()
+    }
+
+    /// Try to translate a virtual address to a physical address.
+    ///
+    /// Will only succeed if there exists a valid mapping for the input address.
+    fn try_virt_addr_to_phys_addr(
+        &self,
+        virt_addr: Address<Virtual>,
+    ) -> Result<Address<Physical>, &'static str> {
+        let virt_page = PageAddress::from(virt_addr.align_down_page());
+        let phys_page = self.try_virt_page_addr_to_phys_page_addr(virt_page)?;
+
+        Ok(phys_page.into_inner() + virt_addr.offset_into_page())
     }
 }
