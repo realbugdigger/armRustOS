@@ -28,6 +28,7 @@ mod driver;
 mod memory;
 mod common;
 mod state;
+mod symbols;
 
 use core::panic::PanicInfo;
 use core::ptr::{read_volatile, write_volatile};

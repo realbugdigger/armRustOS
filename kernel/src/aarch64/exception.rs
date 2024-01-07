@@ -7,6 +7,7 @@
 //!
 //! crate::exception::arch_exception
 
+use crate::{exception, memory, symbols};
 use aarch64_cpu::{asm::barrier, registers::*};
 use core::{arch::global_asm, cell::UnsafeCell, fmt};
 use tock_registers::{
@@ -83,15 +84,14 @@ extern "C" fn current_el0_serror(_e: &mut ExceptionContext) {
 
 #[no_mangle]
 extern "C" fn current_elx_synchronous(e: &mut ExceptionContext) {
-    if e.fault_address_valid() {
-        let far_el1 = FAR_EL1.get();
+    #[cfg(feature = "test_build")]
+    {
+        const TEST_SVC_ID: u64 = 0x1337;
 
-        // This catches the demo case for this tutorial. If the fault address happens to be 8 GiB,
-        // advance the exception link register for one instruction, so that execution can continue.
-        if far_el1 == 8 * 1024 * 1024 * 1024 {
-            e.elr_el1 += 4;
-
-            return;
+        if let Some(ESR_EL1::EC::Value::SVC64) = e.esr_el1.exception_class() {
+            if e.esr_el1.iss() == TEST_SVC_ID {
+                return;
+            }
         }
     }
 
@@ -99,8 +99,9 @@ extern "C" fn current_elx_synchronous(e: &mut ExceptionContext) {
 }
 
 #[no_mangle]
-extern "C" fn current_elx_irq(e: &mut ExceptionContext) {
-    default_exception_handler(e);
+extern "C" fn current_elx_irq(_e: &mut ExceptionContext) {
+    let token = unsafe { &exception::asynchronous::IRQContext::new() };
+    exception::asynchronous::irq_manager().handle_pending_irqs(token);
 }
 
 #[no_mangle]
@@ -188,6 +189,12 @@ impl EsrEL1 {
     fn exception_class(&self) -> Option<ESR_EL1::EC::Value> {
         self.0.read_as_enum(ESR_EL1::EC)
     }
+
+    #[cfg(feature = "test_build")]
+    #[inline(always)]
+    fn iss(&self) -> u64 {
+        self.0.read(ESR_EL1::ISS)
+    }
 }
 
 /// Human readable ESR_EL1.
@@ -249,6 +256,14 @@ impl fmt::Display for ExceptionContext {
 
         writeln!(f, "{}", self.spsr_el1)?;
         writeln!(f, "ELR_EL1: {:#018x}", self.elr_el1)?;
+        writeln!(
+            f,
+            "      Symbol: {}",
+            match symbols::lookup_symbol(memory::Address::new(self.elr_el1 as usize)) {
+                Some(sym) => sym.name(),
+                _ => "Symbol not found",
+            }
+        )?;
         writeln!(f)?;
         writeln!(f, "General purpose register:")?;
 
@@ -290,7 +305,7 @@ pub fn current_privilege_level() -> (PrivilegeLevel, &'static str) {
 ///   adhere to the alignment and size constraints demanded by the ARMv8-A Architecture Reference
 ///   Manual.
 pub unsafe fn handling_init() {
-    // Provided by exception.s
+    // Provided by exception.S.
     extern "Rust" {
         static __exception_vector_start: UnsafeCell<()>;
     }

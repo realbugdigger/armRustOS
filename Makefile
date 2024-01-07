@@ -38,7 +38,7 @@ ifeq ($(BSP),rpi3)
     READELF_BINARY    = aarch64-none-elf-readelf
     OPENOCD_ARG       = -f /openocd/tcl/interface/ftdi/olimex-arm-usb-tiny-h.cfg -f /openocd/rpi3.cfg
     JTAG_BOOT_IMAGE   = ../X1_JTAG_boot/jtag_boot_rpi3.img
-    LD_SCRIPT_PATH    = $(shell pwd)/src/bsp/raspberrypi
+    LD_SCRIPT_PATH    = $(shell pwd)/kernel/src/bsp/raspberrypi
     RUSTC_MISC_ARGS   = -C target-cpu=cortex-a53
 else ifeq ($(BSP),rpi4)
     TARGET            = aarch64-unknown-none-softfloat
@@ -52,7 +52,7 @@ else ifeq ($(BSP),rpi4)
     READELF_BINARY    = aarch64-none-elf-readelf
     OPENOCD_ARG       = -f /openocd/tcl/interface/ftdi/olimex-arm-usb-tiny-h.cfg -f /openocd/rpi4.cfg
     JTAG_BOOT_IMAGE   = ../X1_JTAG_boot/jtag_boot_rpi4.img
-    LD_SCRIPT_PATH    = $(shell pwd)/src/bsp/raspberrypi
+    LD_SCRIPT_PATH    = $(shell pwd)/kernel/src/bsp/raspberrypi
     RUSTC_MISC_ARGS   = -C target-cpu=cortex-a72
 endif
 
@@ -64,7 +64,7 @@ export LD_SCRIPT_PATH
 ##--------------------------------------------------------------------------------------------------
 ## Targets and Prerequisites
 ##--------------------------------------------------------------------------------------------------
-KERNEL_MANIFEST      = Cargo.toml
+KERNEL_MANIFEST      = kernel/Cargo.toml
 KERNEL_LINKER_SCRIPT = kernel.ld
 LAST_BUILD_CONFIG    = target/$(BSP).build_config
 
@@ -81,7 +81,24 @@ TT_TOOL_PATH = tools/translation_table_tool
 KERNEL_ELF_TTABLES      = target/$(TARGET)/release/kernel+ttables
 KERNEL_ELF_TTABLES_DEPS = $(KERNEL_ELF_RAW) $(wildcard $(TT_TOOL_PATH)/*)
 
-KERNEL_ELF = $(KERNEL_ELF_TTABLES)
+##------------------------------------------------------------------------------
+## Kernel symbols
+##------------------------------------------------------------------------------
+export KERNEL_SYMBOLS_TOOL_PATH = tools/kernel_symbols_tool
+
+KERNEL_ELF_TTABLES_SYMS = target/$(TARGET)/release/kernel+ttables+symbols
+
+# Unlike with KERNEL_ELF_RAW, we are not relying on dep-info here. One of the reasons being that the
+# name of the generated symbols file varies between runs, which can cause confusion.
+KERNEL_ELF_TTABLES_SYMS_DEPS = $(KERNEL_ELF_TTABLES) \
+    $(wildcard kernel_symbols/*)                     \
+    $(wildcard $(KERNEL_SYMBOLS_TOOL_PATH)/*)
+
+export TARGET
+export KERNEL_SYMBOLS_INPUT_ELF  = $(KERNEL_ELF_TTABLES)
+export KERNEL_SYMBOLS_OUTPUT_ELF = $(KERNEL_ELF_TTABLES_SYMS)
+
+KERNEL_ELF = $(KERNEL_ELF_TTABLES_SYMS)
 
 
 
@@ -172,11 +189,18 @@ $(KERNEL_ELF_TTABLES): $(KERNEL_ELF_TTABLES_DEPS)
 	@$(DOCKER_TOOLS) $(EXEC_TT_TOOL) $(BSP) $(KERNEL_ELF_TTABLES)
 
 ##------------------------------------------------------------------------------
+## Generate kernel symbols and patch them into the kernel ELF
+##------------------------------------------------------------------------------
+$(KERNEL_ELF_TTABLES_SYMS): $(KERNEL_ELF_TTABLES_SYMS_DEPS)
+	$(call color_header, "Generating kernel symbols and patching kernel ELF")
+	@$(MAKE) --no-print-directory -f kernel_symbols.mk
+
+##------------------------------------------------------------------------------
 ## Generate the stripped kernel binary
 ##------------------------------------------------------------------------------
-$(KERNEL_BIN): $(KERNEL_ELF_TTABLES)
+$(KERNEL_BIN): $(KERNEL_ELF_TTABLES_SYMS)
 	$(call color_header, "Generating stripped binary")
-	@$(OBJCOPY_CMD) $(KERNEL_ELF_TTABLES) $(KERNEL_BIN)
+	@$(OBJCOPY_CMD) $(KERNEL_ELF_TTABLES_SYMS) $(KERNEL_BIN)
 	$(call color_progress_prefix, "Name")
 	@echo $(KERNEL_BIN)
 	$(call color_progress_prefix, "Size")
@@ -185,7 +209,7 @@ $(KERNEL_BIN): $(KERNEL_ELF_TTABLES)
 ##------------------------------------------------------------------------------
 ## Generate the documentation
 ##------------------------------------------------------------------------------
-doc:
+doc: clean
 	$(call color_header, "Generating docs")
 	@$(DOC_CMD) --document-private-items --open
 
@@ -312,10 +336,19 @@ define KERNEL_TEST_RUNNER
     cd $(shell pwd)
 
     TEST_ELF=$$(echo $$1 | sed -e 's/.*target/target/g')
+    TEST_ELF_SYMS="$${TEST_ELF}_syms"
     TEST_BINARY=$$(echo $$1.img | sed -e 's/.*target/target/g')
 
     $(DOCKER_TOOLS) $(EXEC_TT_TOOL) $(BSP) $$TEST_ELF > /dev/null
-    $(OBJCOPY_CMD) $$TEST_ELF $$TEST_BINARY
+
+    # This overrides the two ENV variables. The other ENV variables that are required as input for
+    # the .mk file are set already because they are exported by this Makefile and this script is
+    # started by the same.
+    KERNEL_SYMBOLS_INPUT_ELF=$$TEST_ELF           \
+        KERNEL_SYMBOLS_OUTPUT_ELF=$$TEST_ELF_SYMS \
+        $(MAKE) --no-print-directory -f kernel_symbols.mk > /dev/null 2>&1
+
+    $(OBJCOPY_CMD) $$TEST_ELF_SYMS $$TEST_BINARY
     $(DOCKER_TEST) $(EXEC_TEST_DISPATCH) $(EXEC_QEMU) $(QEMU_TEST_ARGS) -kernel $$TEST_BINARY
 endef
 
