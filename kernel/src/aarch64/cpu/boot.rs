@@ -9,7 +9,10 @@
 
 use crate::{memory, memory::Address};
 use aarch64_cpu::{asm, registers::*};
-use core::arch::global_asm;
+use core::{
+    arch::global_asm,
+    sync::atomic::{compiler_fence, Ordering},
+};
 use tock_registers::interfaces::Writeable;
 
 // Assembly counterpart to this file.
@@ -60,6 +63,18 @@ unsafe fn prepare_el2_to_el1_transition(virt_boot_core_stack_end_exclusive_addr:
     SP_EL1.set(virt_boot_core_stack_end_exclusive_addr);
 }
 
+/// Reset the backtrace by setting link register and frame pointer to zero.
+///
+/// # Safety
+///
+/// - This function must only be used immediately before entering EL1.
+#[inline(always)]
+unsafe fn prepare_backtrace_reset() {
+    compiler_fence(Ordering::SeqCst);
+    FP.set(0);
+    LR.set(0);
+}
+
 //--------------------------------------------------------------------------------------------------
 // Public Code
 //--------------------------------------------------------------------------------------------------
@@ -85,6 +100,9 @@ pub unsafe extern "C" fn _start_rust(
     // Turn on the MMU for EL1.
     let addr = Address::new(phys_kernel_tables_base_addr as usize);
     memory::mmu::enable_mmu_and_caching(addr).unwrap();
+
+    // Make the function we return to the root of a backtrace.
+    prepare_backtrace_reset();
 
     // Use `eret` to "return" to EL1. Since virtual memory will already be enabled, this results in
     // execution of kernel_init() in EL1 from its _virtual address_.

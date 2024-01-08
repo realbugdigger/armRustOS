@@ -29,6 +29,7 @@ mod memory;
 mod common;
 mod state;
 mod symbols;
+mod backtrace;
 
 use core::panic::PanicInfo;
 use core::ptr::{read_volatile, write_volatile};
@@ -72,14 +73,16 @@ fn panic(info: &PanicInfo) -> ! {
 
     println!(
         "[  {:>3}.{:06}] Kernel panic!\n\n\
-        Panic location:\n      File '{}', line {}, column {}\n\n\
-        {}",
+    Panic location:\n      File '{}', line {}, column {}\n\n\
+    {}\n\n\
+    {}",
         timestamp.as_secs(),
         timestamp.subsec_micros(),
         location,
         line,
         column,
         info.message().unwrap_or(&format_args!("")),
+        backtrace::Backtrace
     );
 
     cpu::wait_forever()
@@ -174,7 +177,6 @@ pub extern "C" fn kernelMain() -> ! {
 
 
 
-    // Will never reach here in this tutorial.
     info!("Echoing input now");
     cpu::wait_forever();
 }

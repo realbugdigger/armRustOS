@@ -4,10 +4,10 @@
 
 /// Call the function provided by parameter `\handler` after saving the exception context. Provide
 /// the context as the first parameter to '\handler'.
-.macro CALL_WITH_CONTEXT handler
+.macro CALL_WITH_CONTEXT handler is_lower_el is_sync
 __vector_\handler:
 	// Make room on the stack for the exception context.
-	sub	sp,  sp,  #16 * 17
+	sub	sp,  sp,  #16 * 18
 
 	// Store all general purpose registers on the stack.
 	stp	x0,  x1,  [sp, #16 * 0]
@@ -35,6 +35,42 @@ __vector_\handler:
 	stp	lr,  x1,  [sp, #16 * 15]
 	stp	x2,  x3,  [sp, #16 * 16]
 
+	// Build a stack frame for backtracing.
+.if \is_lower_el == 1
+	// If we came from a lower EL, make it a root frame (by storing zero) so that the kernel
+	// does not attempt to trace into userspace.
+	stp	xzr, xzr, [sp, #16 * 17]
+.else
+	// For normal branches, the link address points to the instruction to be executed _after_
+	// returning from a branch. In a backtrace, we want to show the instruction that caused the
+	// branch, though. That is why code in backtrace.rs subtracts 4 (length of one instruction)
+	// from the link address.
+	//
+	// Here we have a special case, though, because ELR_EL1 is used instead of LR to build the
+	// stack frame, so that it becomes possible to trace beyond an exception. Hence, it must be
+	// considered that semantics for ELR_EL1 differ from case to case.
+	//
+	// Unless an "exception generating instruction" was executed, ELR_EL1 already points to the
+	// the correct instruction, and hence the subtraction by 4 in backtrace.rs would yield wrong
+	// results. To cover for this, 4 is added to ELR_EL1 below unless the cause of exception was
+	// an SVC instruction. BRK and HLT are "exception generating instructions" as well, but they
+	// are not expected and therefore left out for now.
+	//
+	// For reference: Search for "preferred exception return address" in the Architecture
+	// Reference Manual for ARMv8-A.
+.if \is_sync == 1
+	lsr	w3,  w3, {CONST_ESR_EL1_EC_SHIFT}   // w3 = ESR_EL1.EC
+	cmp	w3,  {CONST_ESR_EL1_EC_VALUE_SVC64} // w3 == SVC64 ?
+	b.eq	1f
+.endif
+	add	x1,  x1, #4
+1:
+	stp	x29, x1, [sp, #16 * 17]
+.endif
+
+	// Set the frame pointer to the stack frame record.
+	add	x29, sp, #16 * 17
+
 	// x0 is the first argument for the function called through `\handler`.
 	mov	x0,  sp
 
@@ -61,7 +97,6 @@ __vector_\handler:
 
 //------------------------------------------------------------------------------
 // The exception vector table.
-// https://developer.arm.com/documentation/den0024/a/AArch64-Exception-Handling/AArch64-exception-table?lang=en
 //------------------------------------------------------------------------------
 
 // Align by 2^11 bytes, as demanded by ARMv8-A. Same as ALIGN(2048) in an ld script.
@@ -78,43 +113,43 @@ __exception_vector_start:
 //
 // - It must be ensured that `CALL_WITH_CONTEXT` <= 0x80 bytes.
 .org 0x000
-	CALL_WITH_CONTEXT current_el0_synchronous
+	CALL_WITH_CONTEXT current_el0_synchronous, 0, 1
 .org 0x080
-	CALL_WITH_CONTEXT current_el0_irq
+	CALL_WITH_CONTEXT current_el0_irq, 0, 0
 .org 0x100
 	FIQ_SUSPEND
 .org 0x180
-	CALL_WITH_CONTEXT current_el0_serror
+	CALL_WITH_CONTEXT current_el0_serror, 0, 0
 
 // Current exception level with SP_ELx, x > 0.
 .org 0x200
-	CALL_WITH_CONTEXT current_elx_synchronous
+	CALL_WITH_CONTEXT current_elx_synchronous, 0, 1
 .org 0x280
-	CALL_WITH_CONTEXT current_elx_irq
+	CALL_WITH_CONTEXT current_elx_irq, 0, 0
 .org 0x300
 	FIQ_SUSPEND
 .org 0x380
-	CALL_WITH_CONTEXT current_elx_serror
+	CALL_WITH_CONTEXT current_elx_serror, 0, 0
 
 // Lower exception level, AArch64
 .org 0x400
-	CALL_WITH_CONTEXT lower_aarch64_synchronous
+	CALL_WITH_CONTEXT lower_aarch64_synchronous, 1, 1
 .org 0x480
-	CALL_WITH_CONTEXT lower_aarch64_irq
+	CALL_WITH_CONTEXT lower_aarch64_irq, 1, 0
 .org 0x500
 	FIQ_SUSPEND
 .org 0x580
-	CALL_WITH_CONTEXT lower_aarch64_serror
+	CALL_WITH_CONTEXT lower_aarch64_serror, 1, 0
 
 // Lower exception level, AArch32
 .org 0x600
-	CALL_WITH_CONTEXT lower_aarch32_synchronous
+	CALL_WITH_CONTEXT lower_aarch32_synchronous, 1, 0
 .org 0x680
-	CALL_WITH_CONTEXT lower_aarch32_irq
+	CALL_WITH_CONTEXT lower_aarch32_irq, 1, 0
 .org 0x700
 	FIQ_SUSPEND
 .org 0x780
-	CALL_WITH_CONTEXT lower_aarch32_serror
+	CALL_WITH_CONTEXT lower_aarch32_serror, 1, 0
 .org 0x800
 
 //------------------------------------------------------------------------------
@@ -143,7 +178,7 @@ __exception_restore_context:
 	ldp	x26, x27, [sp, #16 * 13]
 	ldp	x28, x29, [sp, #16 * 14]
 
-	add	sp,  sp,  #16 * 17
+	add	sp,  sp,  #16 * 18
 
 	eret
 

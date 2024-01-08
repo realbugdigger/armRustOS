@@ -39,7 +39,7 @@ ifeq ($(BSP),rpi3)
     OPENOCD_ARG       = -f /openocd/tcl/interface/ftdi/olimex-arm-usb-tiny-h.cfg -f /openocd/rpi3.cfg
     JTAG_BOOT_IMAGE   = ../X1_JTAG_boot/jtag_boot_rpi3.img
     LD_SCRIPT_PATH    = $(shell pwd)/kernel/src/bsp/raspberrypi
-    RUSTC_MISC_ARGS   = -C target-cpu=cortex-a53
+    RUSTC_MISC_ARGS   = -C target-cpu=cortex-a53 -C force-frame-pointers
 else ifeq ($(BSP),rpi4)
     TARGET            = aarch64-unknown-none-softfloat
     KERNEL_BIN        = kernel8.img
@@ -53,7 +53,7 @@ else ifeq ($(BSP),rpi4)
     OPENOCD_ARG       = -f /openocd/tcl/interface/ftdi/olimex-arm-usb-tiny-h.cfg -f /openocd/rpi4.cfg
     JTAG_BOOT_IMAGE   = ../X1_JTAG_boot/jtag_boot_rpi4.img
     LD_SCRIPT_PATH    = $(shell pwd)/kernel/src/bsp/raspberrypi
-    RUSTC_MISC_ARGS   = -C target-cpu=cortex-a72
+    RUSTC_MISC_ARGS   = -C target-cpu=cortex-a72 -C force-frame-pointers
 endif
 
 # Export for build.rs.
@@ -116,10 +116,12 @@ COMPILER_ARGS = --target=$(TARGET) \
     $(FEATURES)                    \
     --release
 
-RUSTC_CMD   = cargo rustc $(COMPILER_ARGS) --manifest-path $(KERNEL_MANIFEST)
+# build-std can be skipped for helper commands that do not rely on correct stack frames and other
+# custom compiler options. This results in a huge speedup.
+RUSTC_CMD   = cargo rustc $(COMPILER_ARGS) -Z build-std=core --manifest-path $(KERNEL_MANIFEST)
 DOC_CMD     = cargo doc $(COMPILER_ARGS)
 CLIPPY_CMD  = cargo clippy $(COMPILER_ARGS)
-TEST_CMD    = cargo test $(COMPILER_ARGS) --manifest-path $(KERNEL_MANIFEST)
+TEST_CMD    = cargo test $(COMPILER_ARGS) -Z build-std=core --manifest-path $(KERNEL_MANIFEST)
 OBJCOPY_CMD = rust-objcopy \
     --strip-all            \
     -O binary
@@ -296,8 +298,7 @@ openocd:
 ##------------------------------------------------------------------------------
 ## Start GDB session
 ##------------------------------------------------------------------------------
-gdb: RUSTC_MISC_ARGS += -C debuginfo=2
-gdb-opt0: RUSTC_MISC_ARGS += -C debuginfo=2 -C opt-level=0
+gdb-opt0: RUSTC_MISC_ARGS += -C opt-level=0
 gdb gdb-opt0: $(KERNEL_ELF)
 	$(call color_header, "Launching GDB")
 	@$(DOCKER_GDB) gdb-multiarch -q $(KERNEL_ELF)
