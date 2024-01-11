@@ -16,7 +16,7 @@
 #![feature(linkage)]
 
 #![no_std]
-#![no_main] // tell the Rust compiler that we don’t want to use the normal entry point chain
+#![no_main]
 
 extern crate alloc;
 
@@ -68,7 +68,7 @@ fn panic(info: &PanicInfo) -> ! {
     // Protect against panic infinite loops if any of the following code panics itself.
     panic_prevent_reenter();
 
-    let timestamp = crate::time::time_manager().uptime();
+    let timestamp = time::time_manager().uptime();
     let (location, line, column) = match info.location() {
         Some(loc) => (loc.file(), loc.line(), loc.column()),
         _ => ("???", 0, 0),
@@ -124,12 +124,11 @@ unsafe fn kernel_init() -> ! {
     state::state_manager().transition_to_single_core_main();
 
     // Transition from unsafe to safe.
-    kernelMain()
+    kernel_main()
 }
 
 /// The main function running after the early init.
-#[no_mangle]
-pub extern "C" fn kernelMain() -> ! {
+fn kernel_main() -> ! {
     info!("Booting on: {}", bsp::board_name());
 
     info!("MMU online:");
