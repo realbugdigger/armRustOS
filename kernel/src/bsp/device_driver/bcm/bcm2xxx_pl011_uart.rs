@@ -19,6 +19,10 @@ use tock_registers::{
     registers::{ReadOnly, ReadWrite, WriteOnly},
 };
 
+//--------------------------------------------------------------------------------------------------
+// Private Definitions
+//--------------------------------------------------------------------------------------------------
+
 // PL011 UART registers.
 //
 // Descriptions taken from "PrimeCell UART (PL011) Technical Reference Manual" r1p5.
@@ -318,6 +322,13 @@ impl PL011UartInner {
         self.chars_written += 1;
     }
 
+    /// Send a slice of characters.
+    fn write_array(&mut self, a: &[char]) {
+        for c in a {
+            self.write_char(*c);
+        }
+    }
+
     /// Block execution until the last buffered character has been physically put on the TX wire.
     fn flush(&self) {
         // Spin until the busy bit is cleared.
@@ -432,6 +443,10 @@ impl console::interface::Write for PL011Uart {
     /// serialize access.
     fn write_char(&self, c: char) {
         self.inner.lock(|inner| inner.write_char(c));
+    }
+
+    fn write_array(&self, a: &[char]) {
+        self.inner.lock(|inner| inner.write_array(a));
     }
 
     fn write_fmt(&self, args: core::fmt::Arguments) -> fmt::Result {

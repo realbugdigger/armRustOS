@@ -12,6 +12,11 @@ BSP ?= rpi3
 # Default to a serial device name that is common in Linux.
 DEV_SERIAL ?= /dev/ttyUSB0
 
+# Optional debug prints.
+ifdef DEBUG_PRINTS
+    FEATURES = --features debug_prints
+endif
+
 # Optional integration test name.
 ifdef TEST
     TEST_ARG = --test $(TEST)
@@ -66,7 +71,7 @@ export LD_SCRIPT_PATH
 ##--------------------------------------------------------------------------------------------------
 KERNEL_MANIFEST      = kernel/Cargo.toml
 KERNEL_LINKER_SCRIPT = kernel.ld
-LAST_BUILD_CONFIG    = target/$(BSP).build_config
+LAST_BUILD_CONFIG    = target/$(BSP)_$(DEBUG_PRINTS).build_config
 
 KERNEL_ELF_RAW      = target/$(TARGET)/release/kernel
 # This parses cargo's dep-info file.
@@ -111,17 +116,17 @@ RUSTFLAGS = $(RUSTC_MISC_ARGS)                   \
 
 RUSTFLAGS_PEDANTIC = $(RUSTFLAGS)
 
-FEATURES      = --features bsp_$(BSP)
+FEATURES     += --features bsp_$(BSP)
 COMPILER_ARGS = --target=$(TARGET) \
     $(FEATURES)                    \
     --release
 
 # build-std can be skipped for helper commands that do not rely on correct stack frames and other
 # custom compiler options. This results in a huge speedup.
-RUSTC_CMD   = cargo rustc $(COMPILER_ARGS) -Z build-std=core --manifest-path $(KERNEL_MANIFEST)
+RUSTC_CMD   = cargo rustc $(COMPILER_ARGS) -Z build-std=core,alloc --manifest-path $(KERNEL_MANIFEST)
 DOC_CMD     = cargo doc $(COMPILER_ARGS)
 CLIPPY_CMD  = cargo clippy $(COMPILER_ARGS)
-TEST_CMD    = cargo test $(COMPILER_ARGS) -Z build-std=core --manifest-path $(KERNEL_MANIFEST)
+TEST_CMD    = cargo test $(COMPILER_ARGS) -Z build-std=core,alloc --manifest-path $(KERNEL_MANIFEST)
 OBJCOPY_CMD = rust-objcopy \
     --strip-all            \
     -O binary

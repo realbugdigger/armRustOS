@@ -1,5 +1,6 @@
 //! Memory Management.
 
+pub mod heap_alloc;
 pub mod mmu;
 
 use crate::{bsp, common};
@@ -159,4 +160,5 @@ impl fmt::Display for Address<Virtual> {
 /// Initialize the memory subsystem.
 pub fn init() {
     mmu::kernel_init_mmio_va_allocator();
+    heap_alloc::kernel_init_heap_allocator();
 }

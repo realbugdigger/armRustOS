@@ -1,4 +1,5 @@
 #![allow(clippy::upper_case_acronyms)]
+#![feature(alloc_error_handler)]
 #![feature(asm_const)]
 #![feature(const_option)]
 #![feature(core_intrinsics)]
@@ -16,6 +17,8 @@
 
 #![no_std]
 #![no_main] // tell the Rust compiler that we don’t want to use the normal entry point chain
+
+extern crate alloc;
 
 mod bsp;
 mod console;
@@ -175,6 +178,9 @@ pub extern "C" fn kernelMain() -> ! {
     // big_addr = 9 * 1024 * 1024 * 1024;
     // unsafe { read_volatile(big_addr as *mut u64) };
 
+
+    info!("Kernel heap:");
+    memory::heap_alloc::kernel_heap_allocator().print_usage();
 
 
     info!("Echoing input now");
