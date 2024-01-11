@@ -4,7 +4,7 @@
 class RaspberryPi
     attr_reader :kernel_granule, :kernel_virt_addr_space_size, :kernel_virt_start_addr
 
-    MEMORY_SRC = File.read('src/bsp/raspberrypi/memory.rs').split("\n")
+    MEMORY_SRC = File.read('kernel/src/bsp/raspberrypi/memory.rs').split("\n")
 
     def initialize
         @kernel_granule = Granule64KiB
@@ -41,6 +41,10 @@ class RaspberryPi
                 raise
             end
 
-        x.scan(/\d+/).join.to_i(16)
+        # Extract the hex literal with underscores like 0x0123_abcd.
+        x = x.scan(/0x[\h_]*/)[0]
+
+        # Further remove x and _ and convert to int.
+        x.scan(/\h+/).join.to_i(16)
     end
 end

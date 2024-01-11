@@ -91,6 +91,18 @@ impl<ATYPE: AddressType> Add<usize> for Address<ATYPE> {
     }
 }
 
+impl<ATYPE: AddressType> Sub<usize> for Address<ATYPE> {
+    type Output = Self;
+
+    #[inline(always)]
+    fn sub(self, rhs: usize) -> Self::Output {
+        match self.value.checked_sub(rhs) {
+            None => panic!("Overflow on Address::sub"),
+            Some(x) => Self::new(x),
+        }
+    }
+}
+
 impl<ATYPE: AddressType> Sub<Address<ATYPE>> for Address<ATYPE> {
     type Output = Self;
 
@@ -100,6 +112,18 @@ impl<ATYPE: AddressType> Sub<Address<ATYPE>> for Address<ATYPE> {
             None => panic!("Overflow on Address::sub"),
             Some(x) => Self::new(x),
         }
+    }
+}
+
+impl Address<Virtual> {
+    /// Checks if the address is part of the boot core stack region.
+    pub fn is_valid_stack_addr(&self) -> bool {
+        bsp::memory::mmu::virt_boot_core_stack_region().contains(*self)
+    }
+
+    /// Checks if the address is part of the kernel code region.
+    pub fn is_valid_code_addr(&self) -> bool {
+        bsp::memory::mmu::virt_code_region().contains(*self)
     }
 }
 
