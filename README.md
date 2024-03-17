@@ -15,3 +15,12 @@ In order to provide a clean abstraction between arch, bsp and generic kernel cod
 
 ***
 
+identity translation for the entire physical address space
+
+***
+
+What does `pub` mean in rust? Available outside of the module ???
+
+***
+
+
