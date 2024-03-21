@@ -88,6 +88,14 @@ extern "C" fn current_elx_synchronous(e: &mut ExceptionContext) {
     if let Some(ESR_EL1::EC::Value::Brk64) = e.esr_el1.exception_class() {
         // This means the exception is due to a breakpoint instruction.
         // Handler code goes here.
+        let elr = e.elr_el1; // Get Exception Link Register value
+
+        warn!("[!] EXCEPTION: BREAKPOINT\n");
+        warn!("\tInstruction Pointer (hex): {:#x}", elr);
+        warn!("\tStack Pointer (hex): {:#x}", get_fp());
+        info!("\tMoving onto next instruction...");
+        e.elr_el1 += 4;
+        return;
     }
     else if let Some(ESR_EL1::EC::Value::DataAbortCurrentEL | ESR_EL1::EC::Value::DataAbortLowerEL) = e.esr_el1.exception_class() {
         // This means we have a data abort - i.e. a page fault.
@@ -106,7 +114,7 @@ extern "C" fn current_elx_synchronous(e: &mut ExceptionContext) {
         // and far contains the faulting address.
 
         warn!("EXCEPTION: PAGE FAULT");
-        warn!("Accessed Address: {:?}", far);
+        warn!("Accessed Address: {:#x}", far);
 
         // if we want to survive this exception, we can just advance the exception link register for one instruction, so that execution can continue.
         e.elr_el1 += 4;
@@ -304,6 +312,22 @@ impl fmt::Display for ExceptionContext {
         }
         write!(f, "      lr : {:#018x}", self.lr)
     }
+}
+
+fn get_sp() -> u64 {
+    let sp: u64;
+    unsafe {
+        asm!("mov {:x}, sp", out(reg) sp);
+    }
+    sp
+}
+
+fn get_fp() -> u64 {
+    let fp: u64;
+    unsafe {
+        asm!("mov {:x}, x29", out(reg) fp);
+    }
+    fp
 }
 
 use crate::exception::PrivilegeLevel;

@@ -34,6 +34,7 @@ mod state;
 mod symbols;
 mod backtrace;
 
+use core::arch::asm;
 use core::panic::PanicInfo;
 use core::ptr::{read_volatile, write_volatile};
 
@@ -151,8 +152,6 @@ fn kernel_main() -> ! {
     info!("Registered IRQ handlers:");
     exception::asynchronous::irq_manager().print_handler();
 
-
-
     // info!("Timer test, spinning for 5 seconds");
     // time::time_manager().spin_for(Duration::from_secs(5));
 
@@ -167,9 +166,8 @@ fn kernel_main() -> ! {
     info!("");
     info!("Let's try again");
 
-
-    // Cause an exception by accessing a virtual address for which no translation was set up. This
-    // code accesses the address 8 GiB, which is outside the mapped address space.
+    // Cause an exception by accessing a virtual address for which no translation was set up.
+    // This code accesses the address 8 GiB, which is outside the mapped address space.
     //
     // For demo purposes, the exception handler will catch the faulting 8 GiB address and allow
     // execution to continue.
@@ -178,6 +176,10 @@ fn kernel_main() -> ! {
     let mut big_addr: u64 = 8 * 1024 * 1024 * 1024;
     unsafe { read_volatile(big_addr as *mut u64) };
 
+    // invoke a breakpoint exception
+    unsafe {
+        asm!("brk #0")
+    }
 
     // info!("Kernel heap:");
     // memory::heap_alloc::kernel_heap_allocator().print_usage();
