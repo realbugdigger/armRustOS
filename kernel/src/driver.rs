@@ -7,10 +7,6 @@ use crate::{
 use alloc::vec::Vec;
 use core::fmt;
 
-//--------------------------------------------------------------------------------------------------
-// Public Definitions
-//--------------------------------------------------------------------------------------------------
-
 /// Driver interfaces.
 pub mod interface {
     /// Device Driver functions.
@@ -47,7 +43,7 @@ pub mod interface {
     }
 }
 
-/// Tpye to be used as an optional callback after a driver's init() has run.
+/// Type to be used as an optional callback after a driver's init() has run.
 pub type DeviceDriverPostInitCallback = unsafe fn() -> Result<(), &'static str>;
 
 /// A descriptor for device drivers.

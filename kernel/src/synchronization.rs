@@ -8,10 +8,6 @@
 
 use core::cell::UnsafeCell;
 
-//--------------------------------------------------------------------------------------------------
-// Public Definitions
-//--------------------------------------------------------------------------------------------------
-
 /// Synchronization interfaces.
 pub mod interface {
 
@@ -27,8 +23,7 @@ pub mod interface {
 
     /// A reader-writer exclusion type.
     ///
-    /// The implementing object allows either a number of readers or at most one writer at any point
-    /// in time.
+    /// The implementing object allows either a number of readers or at most one writer at any point in time.
     pub trait ReadWriteEx {
         /// The type of encapsulated data.
         type Data;
@@ -44,7 +39,7 @@ pub mod interface {
 /// A pseudo-lock for teaching purposes.
 ///
 /// In contrast to a real Mutex implementation, does not protect against concurrent access from
-/// other cores to the contained data. This part is preserved for later lessons.
+/// other cores to the contained data.
 ///
 /// The lock will only be used as long as it is safe to do so, i.e. as long as the kernel is
 /// executing on a single core.
@@ -64,10 +59,6 @@ pub struct InitStateLock<T>
 {
     data: UnsafeCell<T>,
 }
-
-//--------------------------------------------------------------------------------------------------
-// Public Code
-//--------------------------------------------------------------------------------------------------
 
 unsafe impl<T> Send for IRQSafeNullLock<T> where T: ?Sized + Send {}
 unsafe impl<T> Sync for IRQSafeNullLock<T> where T: ?Sized + Send {}

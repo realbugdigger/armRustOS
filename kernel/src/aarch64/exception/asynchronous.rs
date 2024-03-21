@@ -1,7 +1,5 @@
 //! Architectural asynchronous exception handling.
 //!
-//! # Orientation
-//!
 //! Since arch modules are imported into generic modules using the path attribute, the path of this
 //! file is:
 //!
@@ -11,12 +9,14 @@ use aarch64_cpu::registers::*;
 use core::arch::asm;
 use tock_registers::interfaces::{Readable, Writeable};
 
-//--------------------------------------------------------------------------------------------------
-// Private Definitions
-//--------------------------------------------------------------------------------------------------
 
+// Note that modifying DAIF bits should be performed with care.
+// Unmasking interrupt types like FIQ without a corresponding handling function defined could lead to system instability.
 mod daif_bits {
-    pub const IRQ: u8 = 0b0010;
+    pub const D: u8 = 0b1000;   // For Debug.
+    pub const A: u8 = 0b0100;   // For SError (System error).
+    pub const I: u8 = 0b0010;   // For IRQ (Interrupt Request).
+    pub const F: u8 = 0b0001;   // For FIQ (Fast Interrupt Request).
 }
 
 trait DaifField {
@@ -28,9 +28,6 @@ struct SError;
 struct IRQ;
 struct FIQ;
 
-//--------------------------------------------------------------------------------------------------
-// Private Code
-//--------------------------------------------------------------------------------------------------
 
 impl DaifField for Debug {
     fn daif_field() -> tock_registers::fields::Field<u64, DAIF::Register> {
@@ -63,9 +60,6 @@ fn is_masked<T>() -> bool
     DAIF.is_set(T::daif_field())
 }
 
-//--------------------------------------------------------------------------------------------------
-// Public Code
-//--------------------------------------------------------------------------------------------------
 
 /// Returns whether IRQs are masked on the executing core.
 pub fn is_local_irq_masked() -> bool {
@@ -84,7 +78,7 @@ pub fn local_irq_unmask() {
     unsafe {
         asm!(
         "msr DAIFClr, {arg}",
-        arg = const daif_bits::IRQ,
+        arg = const daif_bits::I,
         options(nomem, nostack, preserves_flags)
         );
     }
@@ -96,7 +90,7 @@ pub fn local_irq_mask() {
     unsafe {
         asm!(
         "msr DAIFSet, {arg}",
-        arg = const daif_bits::IRQ,
+        arg = const daif_bits::I,
         options(nomem, nostack, preserves_flags)
         );
     }

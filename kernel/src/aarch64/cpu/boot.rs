@@ -1,7 +1,5 @@
 //! Architectural boot code.
 //!
-//! # Orientation
-//!
 //! Since arch modules are imported into generic modules using the path attribute, the path of this
 //! file is:
 //!
@@ -22,13 +20,10 @@ global_asm!(
     CONST_CORE_ID_MASK = const 0b11
 );
 
-//--------------------------------------------------------------------------------------------------
-// Private Code
-//--------------------------------------------------------------------------------------------------
 
 /// Prepares the transition from EL2 to EL1.
 ///
-/// # Safety
+/// # why is following function unsafe???
 ///
 /// - The `bss` section is not initialized yet. The code must not use or reference it in any way.
 /// - The HW state of EL1 must be prepared in a sound way.
@@ -65,7 +60,7 @@ unsafe fn prepare_el2_to_el1_transition(virt_boot_core_stack_end_exclusive_addr:
 
 /// Reset the backtrace by setting link register and frame pointer to zero.
 ///
-/// # Safety
+/// # why is following function unsafe???
 ///
 /// - This function must only be used immediately before entering EL1.
 #[inline(always)]
@@ -75,17 +70,13 @@ unsafe fn prepare_backtrace_reset() {
     LR.set(0);
 }
 
-//--------------------------------------------------------------------------------------------------
-// Public Code
-//--------------------------------------------------------------------------------------------------
-
 /// The Rust entry of the `kernel` binary.
 ///
 /// The function is called from the assembly `_start` function.
 ///
-/// # Safety
+/// # why is following function unsafe???
 ///
-/// - Exception return from EL2 must must continue execution in EL1 with `kernel_init()`.
+/// - Exception return from EL2 must continue execution in EL1 with `kernel_init()`.
 #[no_mangle]
 pub unsafe extern "C" fn _start_rust(
     phys_kernel_tables_base_addr: u64,

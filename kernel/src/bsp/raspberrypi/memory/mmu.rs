@@ -11,15 +11,9 @@ use crate::{
     synchronization::InitStateLock,
 };
 
-//--------------------------------------------------------------------------------------------------
-// Private Definitions
-//--------------------------------------------------------------------------------------------------
 
 type KernelTranslationTable = <KernelVirtAddrSpace as AssociatedTranslationTable>::TableStartFromTop;
 
-//--------------------------------------------------------------------------------------------------
-// Public Definitions
-//--------------------------------------------------------------------------------------------------
 
 /// The translation granule chosen by this BSP. This will be used everywhere else in the kernel to
 /// derive respective data structures and their sizes. For example, the `crate::memory::mmu::Page`.
@@ -44,8 +38,8 @@ static KERNEL_TABLES: InitStateLock<KernelTranslationTable> = InitStateLock::new
 
 /// This value is needed during early boot for MMU setup.
 ///
-/// This will be patched to the correct value by the "translation table tool" after linking. This
-/// given value here is just a dummy.
+/// This will be patched to the correct value by the "translation table tool" after linking.
+/// This given value here is just a dummy.
 #[link_section = ".text._start_arguments"]
 #[no_mangle]
 static PHYS_KERNEL_TABLES_BASE_ADDR: u64 = 0xCCCCAAAAFFFFEEEE;

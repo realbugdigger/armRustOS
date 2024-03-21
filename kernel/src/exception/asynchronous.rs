@@ -7,17 +7,11 @@ mod null_irq_manager;
 use crate::{bsp, synchronization};
 use core::marker::PhantomData;
 
-//--------------------------------------------------------------------------------------------------
-// Architectural Public Reexports
-//--------------------------------------------------------------------------------------------------
 pub use arch_asynchronous::{
     is_local_irq_masked, local_irq_mask, local_irq_mask_save, local_irq_restore, local_irq_unmask,
     print_state,
 };
 
-//--------------------------------------------------------------------------------------------------
-// Public Definitions
-//--------------------------------------------------------------------------------------------------
 
 /// Interrupt number as defined by the BSP.
 pub type IRQNumber = bsp::exception::asynchronous::IRQNumber;
@@ -93,17 +87,11 @@ pub mod interface {
     }
 }
 
-//--------------------------------------------------------------------------------------------------
-// Global instances
-//--------------------------------------------------------------------------------------------------
 
 static CUR_IRQ_MANAGER: InitStateLock<
     &'static (dyn interface::IRQManager<IRQNumberType = IRQNumber> + Sync),
 > = InitStateLock::new(&null_irq_manager::NULL_IRQ_MANAGER);
 
-//--------------------------------------------------------------------------------------------------
-// Public Code
-//--------------------------------------------------------------------------------------------------
 use synchronization::{interface::ReadWriteEx, InitStateLock};
 
 impl<T> IRQHandlerDescriptor<T>

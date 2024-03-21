@@ -75,10 +75,6 @@ pub mod mmu;
 use crate::memory::{mmu::PageAddress, Address, Physical, Virtual};
 use core::cell::UnsafeCell;
 
-//--------------------------------------------------------------------------------------------------
-// Private Definitions
-//--------------------------------------------------------------------------------------------------
-
 // Symbols from the linker script.
 extern "Rust" {
     static __code_start: UnsafeCell<()>;
@@ -97,9 +93,6 @@ extern "Rust" {
     static __boot_core_stack_end_exclusive: UnsafeCell<()>;
 }
 
-//--------------------------------------------------------------------------------------------------
-// Public Definitions
-//--------------------------------------------------------------------------------------------------
 
 /// The board's physical memory map.
 #[rustfmt::skip]
@@ -126,9 +119,6 @@ pub(super) mod map {
     pub const END: Address<Physical> = mmio::END;
 }
 
-//--------------------------------------------------------------------------------------------------
-// Private Code
-//--------------------------------------------------------------------------------------------------
 
 /// Start page address of the code segment.
 ///
@@ -216,9 +206,6 @@ fn boot_core_stack_size() -> usize {
     }
 }
 
-//--------------------------------------------------------------------------------------------------
-// Public Code
-//--------------------------------------------------------------------------------------------------
 
 /// Exclusive end address of the physical address space.
 #[inline(always)]

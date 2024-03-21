@@ -1,15 +1,15 @@
 //! Architectural synchronous and asynchronous exception handling.
 //!
-//! # Orientation
-//!
 //! Since arch modules are imported into generic modules using the path attribute, the path of this
 //! file is:
 //!
 //! crate::exception::arch_exception
 
-use crate::{exception, memory, symbols};
+use crate::{exception, info, memory, println, symbols, warn};
 use aarch64_cpu::{asm::barrier, registers::*};
 use core::{arch::global_asm, cell::UnsafeCell, fmt};
+use core::arch::asm;
+use aarch64_cpu::asm::ret;
 use tock_registers::{
     interfaces::{Readable, Writeable},
     registers::InMemoryRegister,
@@ -22,9 +22,6 @@ global_asm!(
     CONST_ESR_EL1_EC_VALUE_SVC64 = const 0x15
 );
 
-//--------------------------------------------------------------------------------------------------
-// Private Definitions
-//--------------------------------------------------------------------------------------------------
 
 /// Wrapper structs for memory copies of registers.
 #[repr(transparent)]
@@ -50,12 +47,11 @@ struct ExceptionContext {
     esr_el1: EsrEL1,
 }
 
-//--------------------------------------------------------------------------------------------------
-// Private Code
-//--------------------------------------------------------------------------------------------------
 
 /// Prints verbose information about the exception and then panics.
 fn default_exception_handler(exc: &ExceptionContext) {
+    println!("[***] Page fault ???");
+    info!("[***] Page fault ???");
     panic!(
         "CPU Exception!\n\n\
         {}",
@@ -88,18 +84,44 @@ extern "C" fn current_el0_serror(_e: &mut ExceptionContext) {
 
 #[no_mangle]
 extern "C" fn current_elx_synchronous(e: &mut ExceptionContext) {
-    #[cfg(feature = "test_build")]
-    {
-        const TEST_SVC_ID: u64 = 0x1337;
 
-        if let Some(ESR_EL1::EC::Value::SVC64) = e.esr_el1.exception_class() {
-            if e.esr_el1.iss() == TEST_SVC_ID {
-                return;
+    if let Some(ESR_EL1::EC::Value::Brk64) = e.esr_el1.exception_class() {
+        // This means the exception is due to a breakpoint instruction.
+        // Handler code goes here.
+    }
+    else if let Some(ESR_EL1::EC::Value::DataAbortCurrentEL | ESR_EL1::EC::Value::DataAbortLowerEL) = e.esr_el1.exception_class() {
+        // This means we have a data abort - i.e. a page fault.
+        // Call the appropriate function for handling this, or handle directly in here.
+
+        // Extract faulting address.
+        let elr: u64;
+        let far: u64;
+
+        unsafe {
+            asm!("mrs {:x}, ELR_EL1", out(reg) elr, options(nomem, nostack));
+            asm!("mrs {:x}, FAR_EL1", out(reg) far, options(nomem, nostack));
+        }
+
+        // Here, elr contains the address of the faulting instruction,
+        // and far contains the faulting address.
+
+        warn!("EXCEPTION: PAGE FAULT");
+        warn!("Accessed Address: {:?}", far);
+
+        // if we want to survive this exception, we can just advance the exception link register for one instruction, so that execution can continue.
+        e.elr_el1 += 4;
+        return;
+
+        unsafe {
+            loop {
+                asm!("wfe");
             }
         }
     }
+    else {
+        default_exception_handler(e);
+    }
 
-    default_exception_handler(e);
 }
 
 #[no_mangle]
@@ -249,7 +271,7 @@ impl ExceptionContext {
     }
 }
 
-/// Human readable print of the exception context.
+/// Human-readable print of the exception context.
 impl fmt::Display for ExceptionContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "{}", self.esr_el1)?;
@@ -284,9 +306,6 @@ impl fmt::Display for ExceptionContext {
     }
 }
 
-//--------------------------------------------------------------------------------------------------
-// Public Code
-//--------------------------------------------------------------------------------------------------
 use crate::exception::PrivilegeLevel;
 
 /// The processing element's current privilege level.
@@ -309,7 +328,7 @@ pub fn current_privilege_level() -> (PrivilegeLevel, &'static str) {
 ///   adhere to the alignment and size constraints demanded by the ARMv8-A Architecture Reference
 ///   Manual.
 pub unsafe fn handling_init() {
-    // Provided by exception.S.
+    // Provided by exception.s
     extern "Rust" {
         static __exception_vector_start: UnsafeCell<()>;
     }

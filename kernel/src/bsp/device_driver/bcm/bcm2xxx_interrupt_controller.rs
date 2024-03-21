@@ -10,18 +10,12 @@ use crate::{
 };
 use core::fmt;
 
-//--------------------------------------------------------------------------------------------------
-// Private Definitions
-//--------------------------------------------------------------------------------------------------
 
 /// Wrapper struct for a bitmask indicating pending IRQ numbers.
 struct PendingIRQs {
     bitmask: u64,
 }
 
-//--------------------------------------------------------------------------------------------------
-// Public Definitions
-//--------------------------------------------------------------------------------------------------
 
 pub type LocalIRQ = BoundedUsize<{ InterruptController::MAX_LOCAL_IRQ_NUMBER }>;
 pub type PeripheralIRQ = BoundedUsize<{ InterruptController::MAX_PERIPHERAL_IRQ_NUMBER }>;
@@ -39,9 +33,6 @@ pub struct InterruptController {
     periph: peripheral_ic::PeripheralIC,
 }
 
-//--------------------------------------------------------------------------------------------------
-// Private Code
-//--------------------------------------------------------------------------------------------------
 
 impl PendingIRQs {
     pub fn new(bitmask: u64) -> Self {
@@ -63,9 +54,6 @@ impl Iterator for PendingIRQs {
     }
 }
 
-//--------------------------------------------------------------------------------------------------
-// Public Code
-//--------------------------------------------------------------------------------------------------
 
 impl fmt::Display for IRQNumber {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

@@ -21,8 +21,7 @@ static mut PL011_UART: MaybeUninit<device_driver::PL011Uart> = MaybeUninit::unin
 static mut GPIO: MaybeUninit<device_driver::GPIO> = MaybeUninit::uninit();
 
 #[cfg(feature = "bsp_rpi3")]
-static mut INTERRUPT_CONTROLLER: MaybeUninit<device_driver::InterruptController> =
-    MaybeUninit::uninit();
+static mut INTERRUPT_CONTROLLER: MaybeUninit<device_driver::InterruptController> = MaybeUninit::uninit();
 
 //--------------------------------------------------------------------------------------------------
 // Private Code
@@ -127,15 +126,7 @@ unsafe fn driver_interrupt_controller() -> Result<(), &'static str> {
     Ok(())
 }
 
-//--------------------------------------------------------------------------------------------------
-// Public Code
-//--------------------------------------------------------------------------------------------------
-
 /// Initialize the driver subsystem.
-///
-/// # Safety
-///
-/// See child function calls.
 pub unsafe fn init() -> Result<(), &'static str> {
     static INIT_DONE: AtomicBool = AtomicBool::new(false);
     if INIT_DONE.load(Ordering::Relaxed) {

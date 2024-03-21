@@ -1,4 +1,4 @@
-//! Conditional reexporting of Board Support Packages.
+//! Reexporting of Board Support Packages.
 
 mod device_driver;
 

@@ -93,7 +93,7 @@ fn panic(info: &PanicInfo) -> ! {
 
 /// Early init code.
 ///
-/// # Safety
+/// # why is following function unsafe???
 ///
 /// - Only a single core must be active and running this function.
 /// - The init calls in this function must appear in the correct order:
@@ -155,32 +155,32 @@ fn kernel_main() -> ! {
 
     // info!("Timer test, spinning for 5 seconds");
     // time::time_manager().spin_for(Duration::from_secs(5));
-    //
-    // // Cause an exception by accessing a virtual address for which no translation was set up. This
-    // // code accesses the address 8 GiB, which is outside the mapped address space.
-    // //
-    // // For demo purposes, the exception handler will catch the faulting 8 GiB address and allow
-    // // execution to continue.
-    // info!("");
-    // info!("Trying to read from address 8 GiB...");
-    // let mut big_addr: u64 = 8 * 1024 * 1024 * 1024;
-    // unsafe { read_volatile(big_addr as *mut u64) };
-    //
-    // info!("************************************************");
-    // info!("Whoa! We recovered from a synchronous exception!");
-    // info!("************************************************");
-    // info!("");
-    // info!("Let's try again");
-    //
-    // // Now use address 9 GiB. The exception handler won't forgive us this time.
-    // info!("Trying to read from address 9 GiB...");
-    // big_addr = 9 * 1024 * 1024 * 1024;
-    // unsafe { read_volatile(big_addr as *mut u64) };
+
+    // trigger a page fault
+    unsafe {
+        *(0xdeadbeef as *mut u8) = 42;
+    };
+
+    info!("************************************************");
+    info!("Whoa! We recovered from a synchronous exception!");
+    info!("************************************************");
+    info!("");
+    info!("Let's try again");
 
 
-    info!("Kernel heap:");
-    memory::heap_alloc::kernel_heap_allocator().print_usage();
+    // Cause an exception by accessing a virtual address for which no translation was set up. This
+    // code accesses the address 8 GiB, which is outside the mapped address space.
+    //
+    // For demo purposes, the exception handler will catch the faulting 8 GiB address and allow
+    // execution to continue.
+    info!("");
+    info!("Trying to read from address 8 GiB...");
+    let mut big_addr: u64 = 8 * 1024 * 1024 * 1024;
+    unsafe { read_volatile(big_addr as *mut u64) };
 
+
+    // info!("Kernel heap:");
+    // memory::heap_alloc::kernel_heap_allocator().print_usage();
 
     info!("Echoing input now");
     cpu::wait_forever();

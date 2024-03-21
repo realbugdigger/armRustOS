@@ -1,7 +1,5 @@
 //! Architectural timer primitives.
 //!
-//! # Orientation
-//!
 //! Since arch modules are imported into generic modules using the path attribute, the path of this
 //! file is:
 //!
@@ -16,27 +14,18 @@ use core::{
 };
 use tock_registers::interfaces::Readable;
 
-//--------------------------------------------------------------------------------------------------
-// Private Definitions
-//--------------------------------------------------------------------------------------------------
 
 const NANOSEC_PER_SEC: NonZeroU64 = NonZeroU64::new(1_000_000_000).unwrap();
 
 #[derive(Copy, Clone, PartialOrd, PartialEq)]
 struct GenericTimerCounterValue(u64);
 
-//--------------------------------------------------------------------------------------------------
-// Global instances
-//--------------------------------------------------------------------------------------------------
 
 /// Boot assembly code overwrites this value with the value of CNTFRQ_EL0 before any Rust code is
 /// executed. This given value here is just a (safe) dummy.
 #[no_mangle]
 static ARCH_TIMER_COUNTER_FREQUENCY: NonZeroU32 = NonZeroU32::MIN;
 
-//--------------------------------------------------------------------------------------------------
-// Private Code
-//--------------------------------------------------------------------------------------------------
 
 fn arch_timer_counter_frequency() -> NonZeroU32 {
     // Read volatile is needed here to prevent the compiler from optimizing
@@ -122,9 +111,6 @@ fn read_cntpct() -> GenericTimerCounterValue {
     GenericTimerCounterValue(cnt)
 }
 
-//--------------------------------------------------------------------------------------------------
-// Public Code
-//--------------------------------------------------------------------------------------------------
 
 /// The timer's resolution.
 pub fn resolution() -> Duration {
