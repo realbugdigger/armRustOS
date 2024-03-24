@@ -128,8 +128,8 @@ trait StartAddr {
 // Public Definitions
 //--------------------------------------------------------------------------------------------------
 
-/// Big monolithic struct for storing the translation tables. Individual levels must be 64 KiB
-/// aligned, so the lvl3 is put first.
+/// Big monolithic struct for storing the translation tables.
+/// Individual levels must be 64 KiB aligned, so the lvl3 is put first.
 #[repr(C)]
 #[repr(align(65536))]
 pub struct FixedSizeTranslationTable<const NUM_TABLES: usize, const START_FROM_TOP: bool> {
@@ -298,18 +298,15 @@ for memory::mmu::AddressSpace<AS_SIZE>
     where
         [u8; Self::SIZE >> Granule512MiB::SHIFT]: Sized,
 {
-    type TableStartFromTop =
-    FixedSizeTranslationTable<{ Self::SIZE >> Granule512MiB::SHIFT }, true>;
+    type TableStartFromTop = FixedSizeTranslationTable<{ Self::SIZE >> Granule512MiB::SHIFT }, true>;
 
-    type TableStartFromBottom =
-    FixedSizeTranslationTable<{ Self::SIZE >> Granule512MiB::SHIFT }, false>;
+    type TableStartFromBottom = FixedSizeTranslationTable<{ Self::SIZE >> Granule512MiB::SHIFT }, false>;
 }
 
 impl<const NUM_TABLES: usize, const START_FROM_TOP: bool>
 FixedSizeTranslationTable<NUM_TABLES, START_FROM_TOP>
 {
-    const START_FROM_TOP_OFFSET: Address<Virtual> =
-        Address::new((usize::MAX - (Granule512MiB::SIZE * NUM_TABLES)) + 1);
+    const START_FROM_TOP_OFFSET: Address<Virtual> = Address::new((usize::MAX - (Granule512MiB::SIZE * NUM_TABLES)) + 1);
 
     /// Create an instance.
     #[allow(clippy::assertions_on_constants)]

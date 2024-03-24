@@ -7,9 +7,6 @@ use super::{
 use crate::{bsp, common, info, synchronization, synchronization::InitStateLock};
 use alloc::{vec, vec::Vec};
 
-//--------------------------------------------------------------------------------------------------
-// Private Definitions
-//--------------------------------------------------------------------------------------------------
 
 /// Type describing a virtual memory mapping.
 #[allow(missing_docs)]
@@ -25,16 +22,9 @@ struct MappingRecord {
     inner: Vec<MappingRecordEntry>,
 }
 
-//--------------------------------------------------------------------------------------------------
-// Global instances
-//--------------------------------------------------------------------------------------------------
 
-static KERNEL_MAPPING_RECORD: InitStateLock<MappingRecord> =
-    InitStateLock::new(MappingRecord::new());
+static KERNEL_MAPPING_RECORD: InitStateLock<MappingRecord> = InitStateLock::new(MappingRecord::new());
 
-//--------------------------------------------------------------------------------------------------
-// Private Code
-//--------------------------------------------------------------------------------------------------
 
 impl MappingRecordEntry {
     pub fn new(

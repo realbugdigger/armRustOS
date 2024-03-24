@@ -6,9 +6,6 @@ use crate::{
 };
 use core::{convert::From, iter::Step, num::NonZeroUsize, ops::Range};
 
-//--------------------------------------------------------------------------------------------------
-// Public Definitions
-//--------------------------------------------------------------------------------------------------
 
 /// A wrapper type around [Address] that ensures page alignment.
 #[derive(Copy, Clone, Debug, Eq, PartialOrd, PartialEq)]

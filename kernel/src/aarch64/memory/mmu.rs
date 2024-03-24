@@ -31,6 +31,12 @@ struct MemoryManagementUnit;
 pub type Granule512MiB = TranslationGranule<{ 512 * 1024 * 1024 }>;
 pub type Granule64KiB = TranslationGranule<{ 64 * 1024 }>;
 
+pub type Granule128MiB = TranslationGranule<{ 128 * 1024 * 1024 }>;
+pub type Granule16KiB = TranslationGranule<{ 16 * 1024 }>;
+
+pub type Granule2MiB = TranslationGranule<{ 2 * 1024 * 1024 }>;
+pub type Granule4KiB = TranslationGranule<{ 4 * 1024 }>;
+
 /// Constants for indexing the MAIR_EL1.
 #[allow(dead_code)]
 pub mod mair {
@@ -53,6 +59,8 @@ impl<const AS_SIZE: usize> memory::mmu::AddressSpace<AS_SIZE> {
     pub const fn arch_address_space_size_sanity_checks() {
         // Size must be at least one full 512 MiB table.
         assert!((AS_SIZE % Granule512MiB::SIZE) == 0);
+        // assert!((AS_SIZE % Granule128MiB::SIZE) == 0);
+        // assert!((AS_SIZE % Granule2MiB::SIZE) == 0);
 
         // Check for 48 bit virtual address size as maximum, which is supported by any ARMv8
         // version.

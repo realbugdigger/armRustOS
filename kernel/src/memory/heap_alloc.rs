@@ -15,7 +15,7 @@ use linked_list_allocator::Heap as LinkedListHeap;
 // Public Definitions
 //--------------------------------------------------------------------------------------------------
 
-/// A heap allocator that can be lazyily initialized.
+/// A heap allocator that can be lazily initialized.
 pub struct HeapAllocator {
     inner: IRQSafeNullLock<LinkedListHeap>,
 }

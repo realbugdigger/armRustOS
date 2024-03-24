@@ -17,9 +17,6 @@ use core::{fmt, num::NonZeroUsize};
 
 pub use types::*;
 
-//--------------------------------------------------------------------------------------------------
-// Public Definitions
-//--------------------------------------------------------------------------------------------------
 
 /// MMU enable errors variants.
 #[allow(missing_docs)]
@@ -37,7 +34,7 @@ pub mod interface {
     pub trait MMU {
         /// Turns on the MMU for the first time and enables data and instruction caching.
         ///
-        /// # Safety
+        /// # why is this function unsafe ???
         ///
         /// - Changes the HW's global state.
         unsafe fn enable_mmu_and_caching(
@@ -80,7 +77,7 @@ use translation_table::interface::TranslationTable;
 ///
 /// No input checks done, input is passed through to the architectural implementation.
 ///
-/// # Safety
+/// # why is this function unsafe ???
 ///
 /// - See `map_at()`.
 /// - Does not prevent aliasing.
@@ -177,7 +174,7 @@ pub fn kernel_add_mapping_record(
 ///
 /// Typically used by device drivers.
 ///
-/// # Safety
+/// # why is this function unsafe ???
 ///
 /// - Same as `kernel_map_at_unchecked()`, minus the aliasing part.
 pub unsafe fn kernel_map_mmio(
@@ -246,9 +243,9 @@ pub fn kernel_print_mappings() {
 
 /// Enable the MMU and data + instruction caching.
 ///
-/// # Safety
+/// # why is this function unsafe ???
 ///
-/// - Crucial function during kernel init. Changes the the complete memory view of the processor.
+/// - Crucial function during kernel init. Changes the complete memory view of the processor.
 #[inline(always)]
 pub unsafe fn enable_mmu_and_caching(
     phys_tables_base_addr: Address<Physical>,

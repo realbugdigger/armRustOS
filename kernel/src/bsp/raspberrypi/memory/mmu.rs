@@ -31,7 +31,7 @@ pub type KernelVirtAddrSpace = AddressSpace<{ kernel_virt_addr_space_size() }>;
 /// It is mandatory that InitStateLock is transparent.
 ///
 /// That is, `size_of(InitStateLock<KernelTranslationTable>) == size_of(KernelTranslationTable)`.
-/// There is a unit tests that checks this porperty.
+/// There is a unit tests that checks this property.
 #[link_section = ".data"]
 #[no_mangle]
 static KERNEL_TABLES: InitStateLock<KernelTranslationTable> = InitStateLock::new(KernelTranslationTable::new_for_precompute());

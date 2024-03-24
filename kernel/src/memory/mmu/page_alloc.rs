@@ -8,25 +8,16 @@ use crate::{
 };
 use core::num::NonZeroUsize;
 
-//--------------------------------------------------------------------------------------------------
-// Public Definitions
-//--------------------------------------------------------------------------------------------------
 
-/// A page allocator that can be lazyily initialized.
+/// A page allocator that can be lazily initialized.
 pub struct PageAllocator<ATYPE: AddressType> {
     pool: Option<MemoryRegion<ATYPE>>,
 }
 
-//--------------------------------------------------------------------------------------------------
-// Global instances
-//--------------------------------------------------------------------------------------------------
 
 static KERNEL_MMIO_VA_ALLOCATOR: IRQSafeNullLock<PageAllocator<Virtual>> =
     IRQSafeNullLock::new(PageAllocator::new());
 
-//--------------------------------------------------------------------------------------------------
-// Public Code
-//--------------------------------------------------------------------------------------------------
 
 /// Return a reference to the kernel's MMIO virtual address allocator.
 pub fn kernel_mmio_va_allocator() -> &'static IRQSafeNullLock<PageAllocator<Virtual>> {

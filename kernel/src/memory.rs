@@ -1,5 +1,3 @@
-//! Memory Management.
-
 pub mod heap_alloc;
 pub mod mmu;
 
@@ -10,9 +8,6 @@ use core::{
     ops::{Add, Sub},
 };
 
-//--------------------------------------------------------------------------------------------------
-// Public Definitions
-//--------------------------------------------------------------------------------------------------
 
 /// Metadata trait for marking the type of an address.
 pub trait AddressType: Copy + Clone + PartialOrd + PartialEq + Ord + Eq {}
@@ -32,9 +27,6 @@ pub struct Address<ATYPE: AddressType> {
     _address_type: PhantomData<fn() -> ATYPE>,
 }
 
-//--------------------------------------------------------------------------------------------------
-// Public Code
-//--------------------------------------------------------------------------------------------------
 
 impl AddressType for Physical {}
 impl AddressType for Virtual {}
