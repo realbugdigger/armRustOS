@@ -1,7 +1,5 @@
 //! Architectural backtracing support.
 //!
-//! # Orientation
-//!
 //! Since arch modules are imported into generic modules using the path attribute, the path of this
 //! file is:
 //!
@@ -14,9 +12,6 @@ use crate::{
 use aarch64_cpu::registers::*;
 use tock_registers::interfaces::Readable;
 
-//--------------------------------------------------------------------------------------------------
-// Private Definitions
-//--------------------------------------------------------------------------------------------------
 
 /// A Stack frame record.
 ///
@@ -35,9 +30,6 @@ struct StackFrameRecordIterator<'a> {
     cur: &'a StackFrameRecord<'a>,
 }
 
-//--------------------------------------------------------------------------------------------------
-// Private Code
-//--------------------------------------------------------------------------------------------------
 
 impl<'a> Iterator for StackFrameRecordIterator<'a> {
     type Item = BacktraceItem;
@@ -94,39 +86,9 @@ fn stack_frame_record_iterator<'a>() -> Option<StackFrameRecordIterator<'a>> {
     })
 }
 
-//--------------------------------------------------------------------------------------------------
-// Public Code
-//--------------------------------------------------------------------------------------------------
+
 
 /// Architectural implementation of the backtrace.
 pub fn backtrace(f: impl FnOnce(Option<&mut dyn Iterator<Item = BacktraceItem>>)) {
     f(stack_frame_record_iterator().as_mut().map(|s| s as _))
-}
-
-//--------------------------------------------------------------------------------------------------
-// Testing
-//--------------------------------------------------------------------------------------------------
-
-#[cfg(feature = "test_build")]
-#[inline(always)]
-/// Hack for corrupting the previous frame address in the current stack frame.
-///
-/// # Safety
-///
-/// - To be used only by testing code.
-pub unsafe fn corrupt_previous_frame_addr() {
-    let sf = FP.get() as *mut usize;
-    *sf = 0x123;
-}
-
-#[cfg(feature = "test_build")]
-#[inline(always)]
-/// Hack for corrupting the link in the current stack frame.
-///
-/// # Safety
-///
-/// - To be used only by testing code.
-pub unsafe fn corrupt_link() {
-    let sf = FP.get() as *mut StackFrameRecord;
-    (*sf).link = Address::new(0x456);
 }

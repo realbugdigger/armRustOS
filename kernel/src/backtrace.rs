@@ -9,15 +9,6 @@ use crate::{
 };
 use core::fmt;
 
-//--------------------------------------------------------------------------------------------------
-// Architectural Public Reexports
-//--------------------------------------------------------------------------------------------------
-#[cfg(feature = "test_build")]
-pub use arch_backtrace::{corrupt_link, corrupt_previous_frame_addr};
-
-//--------------------------------------------------------------------------------------------------
-// Public Definitions
-//--------------------------------------------------------------------------------------------------
 
 /// A backtrace item.
 #[allow(missing_docs)]
@@ -30,9 +21,6 @@ pub enum BacktraceItem {
 /// Pseudo-struct for printing a backtrace using its fmt::Display implementation.
 pub struct Backtrace;
 
-//--------------------------------------------------------------------------------------------------
-// Public Code
-//--------------------------------------------------------------------------------------------------
 
 impl fmt::Display for Backtrace {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

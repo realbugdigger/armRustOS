@@ -4,27 +4,18 @@ use crate::memory::{Address, Virtual};
 use core::{cell::UnsafeCell, slice};
 use debug_symbol_types::Symbol;
 
-//--------------------------------------------------------------------------------------------------
-// Private Definitions
-//--------------------------------------------------------------------------------------------------
 
 // Symbol from the linker script.
 extern "Rust" {
     static __kernel_symbols_start: UnsafeCell<()>;
 }
 
-//--------------------------------------------------------------------------------------------------
-// Global instances
-//--------------------------------------------------------------------------------------------------
 
-/// This will be patched to the correct value by the "kernel symbols tool" after linking. This given
-/// value here is just a (safe) dummy.
+/// This will be patched to the correct value by the "kernel symbols tool" after linking.
+/// This given value here is just a (safe) dummy.
 #[no_mangle]
 static NUM_KERNEL_SYMBOLS: u64 = 0;
 
-//--------------------------------------------------------------------------------------------------
-// Private Code
-//--------------------------------------------------------------------------------------------------
 
 fn kernel_symbol_section_virt_start_addr() -> Address<Virtual> {
     Address::new(unsafe { __kernel_symbols_start.get() as usize })
@@ -44,9 +35,6 @@ fn kernel_symbols_slice() -> &'static [Symbol] {
     unsafe { slice::from_raw_parts(ptr, num_kernel_symbols()) }
 }
 
-//--------------------------------------------------------------------------------------------------
-// Public Code
-//--------------------------------------------------------------------------------------------------
 
 /// Retrieve the symbol corresponding to a virtual address, if any.
 pub fn lookup_symbol(addr: Address<Virtual>) -> Option<&'static Symbol> {
