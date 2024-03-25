@@ -11,25 +11,16 @@ use alloc::alloc::{GlobalAlloc, Layout};
 use core::sync::atomic::{AtomicBool, Ordering};
 use linked_list_allocator::Heap as LinkedListHeap;
 
-//--------------------------------------------------------------------------------------------------
-// Public Definitions
-//--------------------------------------------------------------------------------------------------
 
 /// A heap allocator that can be lazily initialized.
 pub struct HeapAllocator {
     inner: IRQSafeNullLock<LinkedListHeap>,
 }
 
-//--------------------------------------------------------------------------------------------------
-// Global instances
-//--------------------------------------------------------------------------------------------------
 
 #[global_allocator]
 static KERNEL_HEAP_ALLOCATOR: HeapAllocator = HeapAllocator::new();
 
-//--------------------------------------------------------------------------------------------------
-// Private Code
-//--------------------------------------------------------------------------------------------------
 
 #[inline(always)]
 fn debug_print_alloc_dealloc(operation: &'static str, ptr: *mut u8, layout: Layout) {
@@ -53,9 +44,7 @@ fn debug_print_alloc_dealloc(operation: &'static str, ptr: *mut u8, layout: Layo
     );
 }
 
-//--------------------------------------------------------------------------------------------------
-// Public Code
-//--------------------------------------------------------------------------------------------------
+
 use synchronization::interface::Mutex;
 
 #[alloc_error_handler]

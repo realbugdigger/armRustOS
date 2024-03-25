@@ -34,6 +34,7 @@ mod state;
 mod symbols;
 mod backtrace;
 
+use alloc::boxed::Box;
 use core::arch::asm;
 use core::panic::PanicInfo;
 use core::ptr::{read_volatile, write_volatile};
@@ -153,8 +154,8 @@ fn kernel_main() -> ! {
     info!("Registered IRQ handlers:");
     exception::asynchronous::irq_manager().print_handler();
 
-    info!("Timer test, spinning for 5 seconds");
-    time::time_manager().spin_for(Duration::from_secs(5));
+    // info!("Timer test, spinning for 5 seconds");
+    // time::time_manager().spin_for(Duration::from_secs(5));
 
     // trigger a page fault
     unsafe {
@@ -181,6 +182,13 @@ fn kernel_main() -> ! {
     unsafe {
         asm!("brk #0")
     }
+
+    info!("Kernel heap:");
+    memory::heap_alloc::kernel_heap_allocator().print_usage();
+
+    // allocate a number on the heap
+    let heap_value = Box::new(41);
+    info!("heap_value at {:p}", heap_value);
 
     info!("Kernel heap:");
     memory::heap_alloc::kernel_heap_allocator().print_usage();
