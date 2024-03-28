@@ -8,8 +8,11 @@ use crate::{
     warn,
 };
 use alloc::alloc::{GlobalAlloc, Layout};
+use core::ptr::null;
 use core::sync::atomic::{AtomicBool, Ordering};
+use lazy_static::lazy_static;
 use linked_list_allocator::Heap as LinkedListHeap;
+use spin::Once;
 
 
 /// A heap allocator that can be lazily initialized.
@@ -18,9 +21,15 @@ pub struct HeapAllocator {
 }
 
 
-#[global_allocator]
-static KERNEL_HEAP_ALLOCATOR: HeapAllocator = HeapAllocator::new();
+// #[global_allocator]
+// lazy_static! {
+//     pub static ref KERNEL_HEAP_ALLOCATOR: HeapAllocator = HeapAllocator::new();
+// }
 
+#[global_allocator]
+static KERNEL_ALLOC: HeapAllocator = HeapAllocator::new();
+
+static KERNEL_HEAP_ALLOCATOR: Once<HeapAllocator> = Once::new();
 
 #[inline(always)]
 fn debug_print_alloc_dealloc(operation: &'static str, ptr: *mut u8, layout: Layout) {
@@ -55,12 +64,18 @@ fn alloc_error_handler(layout: Layout) -> ! {
 
 /// Return a reference to the kernel's heap alloc.
 pub fn kernel_heap_allocator() -> &'static HeapAllocator {
-    &KERNEL_HEAP_ALLOCATOR
+    &KERNEL_HEAP_ALLOCATOR.get().unwrap()
 }
 
 impl HeapAllocator {
+    pub fn new() -> Self {
+        Self {
+            inner: _,
+        }
+    }
+
     /// Create an instance.
-    pub const fn new() -> Self {
+    pub fn init() -> Self {
         Self {
             inner: IRQSafeNullLock::new(BuddyAllocator::new()),
         }
@@ -91,14 +106,15 @@ impl HeapAllocator {
 
 unsafe impl GlobalAlloc for HeapAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let result = KERNEL_HEAP_ALLOCATOR
+        let result = KERNEL_HEAP_ALLOCATOR.get().unwrap()
             .inner
             .lock(|inner| inner.alloc(layout).ok());
 
         match result {
             None => core::ptr::null_mut(),
             Some(allocation) => {
-                let ptr = allocation.as_ptr();
+                // let ptr = allocation.as_ptr();
+                let ptr = allocation;
 
                 debug_print_alloc_dealloc("Allocation", ptr, layout);
 
@@ -108,11 +124,17 @@ unsafe impl GlobalAlloc for HeapAllocator {
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        KERNEL_HEAP_ALLOCATOR
+        KERNEL_HEAP_ALLOCATOR.get().unwrap()
             .inner
             .lock(|inner| inner.dealloc(ptr, layout));
 
         debug_print_alloc_dealloc("Free", ptr, layout);
+    }
+}
+
+fn init_heap() -> HeapAllocator {
+    HeapAllocator {
+        inner: IRQSafeNullLock::new(BuddyAllocator::new()),
     }
 }
 
@@ -130,8 +152,14 @@ pub fn kernel_init_heap_allocator() {
     //     inner.init(region.start_addr().as_usize() as *mut u8, region.size())
     // });
 
-    KERNEL_HEAP_ALLOCATOR.inner.lock(|inner| unsafe {
-        inner.init(region.start_addr().as_usize() as *mut u8, region.size())
+    // KERNEL_HEAP_ALLOCATOR.get().unwrap().inner.lock(|inner| unsafe {
+    //     inner.init(region.start_addr().as_usize() as *mut u8, region.size())
+    // });
+
+    let allocator = KERNEL_HEAP_ALLOCATOR.call_once(|| {
+        // let mut heap_allocator = KERNEL_ALLOC;
+        KERNEL_ALLOC.init_heap(region.start_addr().as_usize() as *mut u8, region.size());
+        KERNEL_ALLOC
     });
 
     INIT_DONE.store(true, Ordering::Relaxed);

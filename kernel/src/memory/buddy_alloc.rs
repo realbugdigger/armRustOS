@@ -2,6 +2,7 @@ use alloc::vec::Vec;
 use core::alloc::{GlobalAlloc, Layout};
 use core::cmp;
 use core::fmt::Display;
+use core::ptr::NonNull;
 use crate::info;
 
 pub struct BuddyAllocator {
@@ -15,12 +16,25 @@ pub struct BuddyAllocator {
 impl BuddyAllocator {
 
     pub fn new() -> BuddyAllocator {
+        // number of levels excluding the leaf level
+        let mut num_levels: u8 = 18;
+        // vector of free lists
+        let mut free_lists: Vec<Vec<u32>> = Vec::with_capacity((num_levels + 1) as usize);
+        // Initialize each free list with a small capacity (in order to use the current allocator
+        // at least for the first few items and not the one that will be in use when we're actually
+        // using this as the allocator as this might lead to this allocator using itself and locking)
+        for _ in 0..(num_levels + 1) {
+            free_lists.push(Vec::with_capacity(4));
+        }
+        // The top-most block is (the only) free for now!
+        free_lists[0].push(0);
+
         BuddyAllocator {
             start_address: 0,
             end_address: 0,
-            num_levels: 18,
+            num_levels,
             block_size: 4096,
-            free_list: vec![],
+            free_list: free_lists,
         }
     }
     
@@ -124,7 +138,7 @@ impl BuddyAllocator {
 }
 
 impl BuddyAllocator {
-    pub unsafe fn alloc(&mut self, layout: Layout) -> *mut u8 {
+    pub unsafe fn alloc(&mut self, layout: Layout) -> Result<*mut u8, ()> {
         info!("[!!!!!!!!!!!!] ALOCATING !!!!");
         // We should always be aligned due to how the buddy alloc works
         // (everything will be aligned to block_size bytes).
@@ -154,7 +168,7 @@ impl BuddyAllocator {
 
         let block = self.get_free_block(level).unwrap();
         let addr = self.start_address + block as u64 * (self.max_size() >> level) as u64;
-        addr as *mut u8
+        Ok(addr as *mut u8)
     }
 
     pub unsafe fn dealloc(&mut self, ptr: *mut u8, layout: Layout) {

@@ -14,6 +14,7 @@
 #![feature(int_roundings)]
 #![feature(is_sorted)]
 #![feature(linkage)]
+#![feature(const_for)]
 
 #![no_std]
 #![no_main]
