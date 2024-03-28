@@ -1,5 +1,6 @@
 pub mod heap_alloc;
 pub mod mmu;
+mod buddy_alloc;
 
 use crate::{bsp, common};
 use core::{
