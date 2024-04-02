@@ -15,5 +15,6 @@ To-do future enhancements:
   - Build SLOB allocator on top of it
  
 - Add transition from EL1 to EL0 and some userland app
+  - Add syscalls
 - Implement some memory protection mechanism (PAC, Memory tagging)???
 - Add *multitasking* to OS
